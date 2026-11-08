@@ -254,7 +254,7 @@
     var a = o.id ? byId(o.id) : null;
     if (!a) a = { id: o.id || uid(), type: "property", created: o.created || Date.now(), photoCount: 0, cond: "Good", notes: "", props: {} };
     if (o.name != null) a.label = String(o.name).trim().slice(0, 60);
-    ["cat", "am", "addr", "mca", "geo", "rot"].forEach(function (k) { if (o[k] != null) a.props[k] = String(o[k]).trim(); });
+    ["cat", "am", "addr", "mca", "geo", "rot", "field"].forEach(function (k) { if (o[k] != null) a.props[k] = String(o[k]).trim(); });
     if (o.ll) { a.lng = +(+o.ll[0]).toFixed(7); a.lat = +(+o.ll[1]).toFixed(7); a.acc = o.acc == null ? null : o.acc; }
     a.park = a.label;
     return saveAsset(a).then(function () { return a; });
@@ -751,9 +751,9 @@
     layerErrors: function () { return LAYER_ERR.slice(); },
     places: function () { return ASSETS.filter(function (a) { return a.type === "property"; }); },
     fixes: function () { return ASSETS.filter(function (a) { return a.type === "parkfix"; }); },
-    saveFix: function (name, ll, rot) { if (RO) { PU.toast("View only \u2014 ask an admin for editor access."); return Promise.reject(new Error("view only")); }
+    saveFix: function (name, ll, rot, extra) { if (RO) { PU.toast("View only \u2014 ask an admin for editor access."); return Promise.reject(new Error("view only")); }
       var id = "fix-" + String(name).toLowerCase().replace(/[^a-z0-9]+/g, "-"), a = byId(id) || { id: id, type: "parkfix", created: Date.now(), photoCount: 0, cond: "Good", notes: "", props: {} };
-      a.label = name; a.park = name; if (ll) { a.lng = +(+ll[0]).toFixed(7); a.lat = +(+ll[1]).toFixed(7); } if (rot != null) a.props.rot = Math.round(rot) % 360; return saveAsset(a); },
+      a.label = name; a.park = name; if (ll) { a.lng = +(+ll[0]).toFixed(7); a.lat = +(+ll[1]).toFixed(7); } if (rot != null) a.props.rot = Math.round(rot) % 360; if (extra) Object.keys(extra).forEach(function (k) { a.props[k] = extra[k]; }); return saveAsset(a); },
     previewAsset: function (id, ll, rot) { var a = byId(id); if (!a) return; if (ll) { a.lng = ll[0]; a.lat = ll[1]; } if (rot != null) { a.props = a.props || {}; a.props.rot = rot; } refresh(); }, saveProperty: saveProperty, deleteProperty: function (id) { var a = byId(id); return a ? delAsset(a) : Promise.resolve(); },
     onPlaces: function (f) { placeCbs.push(f); }, setReadOnly: setRO, readOnly: function () { return RO; },
     onChange: function (f) { hooks.push(f); },

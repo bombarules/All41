@@ -28,11 +28,12 @@
   function geos() {
     if (GEO) return GEO;
     if (VOXEL) { var bx = new THREE.BoxGeometry(1, 1, 1); bx.translate(0, .5, 0); GEO = {};
-      ["box", "cyl", "half", "cone", "roof", "canopy", "pine"].forEach(function (k) { GEO[k] = bx; }); return GEO; }
+      ["box", "cyl", "half", "cone", "roof", "canopy", "pine", "fan"].forEach(function (k) { GEO[k] = bx; }); return GEO; }
     var T = THREE; GEO = {};
     GEO.box = new T.BoxGeometry(1, 1, 1); GEO.box.translate(0, .5, 0);
     GEO.cyl = new T.CylinderGeometry(.5, .5, 1, 18); GEO.cyl.translate(0, .5, 0);
     GEO.half = new T.CylinderGeometry(.5, .5, 1, 14, 1, false, 0, Math.PI); GEO.half.translate(0, .5, 0);
+    GEO.fan = new T.CylinderGeometry(.5, .5, 1, 24, 1, false, Math.PI * .75, Math.PI * .5); GEO.fan.translate(0, .5, 0);
     GEO.cone = new T.ConeGeometry(.5, 1, 8); GEO.cone.translate(0, .5, 0);
     GEO.roof = new T.ConeGeometry(Math.SQRT1_2, 1, 4, 1); GEO.roof.rotateY(Math.PI / 4); GEO.roof.translate(0, .5, 0);
     GEO.canopy = new T.IcosahedronGeometry(.5, 0); GEO.canopy.translate(0, .5, 0);
@@ -64,8 +65,9 @@
 
   function zoneHit(x, z) { if (S.decorOff) return true; var zs = S.zonesLocal || []; for (var i = 0; i < zs.length; i++) { var q = zs[i];
       if (x < q.x0 || x > q.x1 || z < q.z0 || z > q.z1) continue; var c = false, rg = q.r; for (var a = 0, b = rg.length - 1; a < rg.length; b = a++) { if ((rg[a][1] > z) !== (rg[b][1] > z) && x < (rg[b][0] - rg[a][0]) * (z - rg[a][1]) / (rg[b][1] - rg[a][1]) + rg[a][0]) c = !c; } if (c) return true; } return false; }
+  function keptOut(x, z) { var k = S.keep || []; for (var i = 0; i < k.length; i++) if (Math.hypot(x - k[i][0], z - k[i][1]) < k[i][2]) return true; return false; }
   function tree(r, x, z, s) {
-    if (zoneHit(x, z)) { r(); r(); r(); return; }
+    if (zoneHit(x, z) || keptOut(x, z)) { r(); r(); r(); return; }
     if (VOXEL) { var th = Math.round(4 + r() * 3), cw = r() < .2 ? 7 : 5, leaf = ["#4f9a3a", "#5aa843", "#3f8a33", "#64b04a"][Math.floor(r() * 4)];
       put("box", "#7a5530", x, 1.2, z, 1.2, th, 1.2);
       put("box", leaf, x, 1.2 + th - 1, z, cw, 3, cw); put("box", leaf, x, 1.2 + th + 2, z, cw - 2, 2, cw - 2); return; }
@@ -83,6 +85,9 @@
 
   /* ---------- one model per park, built from its real amenity list ---------- */
   function has(p, re) { return re.test(p.am || ""); }
+  function fieldStyle(p) { if (p.field === "rect" || p.field === "baseball" || p.field === "infield") return p.field;
+    var t = (p.n || "") + " " + (p.am || ""); if (!/baseball|softball/i.test(t)) return "rect"; return /practice/i.test(p.n || "") ? "infield" : "baseball"; }
+  function isDiamond(p) { return fieldStyle(p) !== "rect"; }
   function model(p, x, z) {
     var r = rng(p.n), rad = radius(p), cat = p.cat, rot0 = r() * Math.PI * 2, rot = p.rot != null && !isNaN(p.rot) ? p.rot * Math.PI / 180 : rot0;
     var cs = Math.cos(rot), sn = Math.sin(rot);
@@ -150,6 +155,41 @@
     } else if (cat === "large") {
       P("cyl", "#4cc3e0", rad * .3, -.1, rad * .25, rad * .7, .3, rad * .5); reserve(rad * .3, rad * .25, rad * .38);
       trailRing(rad * .82);
+    } else if (cat === "sports" && isDiamond(p)) {
+      /* baseball diamond: home plate south, outfield fanning north (turn the park to aim it) */
+      var R = rad * 1.25, B = R * .3, hz = R * .45, s2 = Math.SQRT1_2;
+      function H(dx, dz) { return [dx, hz + dz]; }               /* offsets from home plate */
+      var h0 = H(0, 0), full = fieldStyle(p) === "baseball", DR = B * (full ? 1.55 : 1.6);
+      if (full) P("fan", "#5cad4e", h0[0], 0, h0[1], R * 2, .12, R * 2);             /* outfield grass */
+      P("fan", "#c98f57", h0[0], 0, h0[1], DR * 2, .16, DR * 2);                     /* skinned infield arc */
+      if (full) { var ig = H(0, -B * s2); P("box", "#5cad4e", ig[0], 0, ig[1], B * .78, .2, B * .78, Math.PI / 4); }   /* infield grass */
+      var md = H(0, -B * .68); P("cyl", "#c98f57", md[0], 0, md[1], 5, .5, 5); P("box", "#ffffff", md[0], .5, md[1], .6, .05, .15);   /* pitcher's mound */
+      P("cyl", "#c98f57", h0[0], 0, h0[1], 8, .2, 8); P("box", "#ffffff", h0[0], .21, h0[1], .45, .04, .45, Math.PI / 4);           /* home plate */
+      [[B * s2, -B * s2], [0, -B * Math.SQRT2], [-B * s2, -B * s2]].forEach(function (o) { var q = H(o[0], o[1]); P("box", "#ffffff", q[0], .2, q[1], .4, .1, .4, Math.PI / 4); });   /* bases */
+      var FL = full ? R : DR;
+      [[1, -Math.PI / 4], [-1, Math.PI / 4]].forEach(function (f) { var q = H(f[0] * FL * s2 / 2, -FL * s2 / 2); P("box", "#ffffff", q[0], .18, q[1], .22, .03, FL, f[1]); });     /* foul lines */
+      for (var fa = -45; full && fa <= 45; fa += 4.5) { var ar = fa * Math.PI / 180, q = H(Math.sin(ar) * R, -Math.cos(ar) * R);
+        P("box", "#2f6d3a", q[0], 0, q[1], .2, 1.9, .2); if (fa < 45) { var ar2 = (fa + 2.25) * Math.PI / 180, q2 = H(Math.sin(ar2) * R, -Math.cos(ar2) * R); P("box", "#3c7f47", q2[0], 1.5, q2[1], .12, .5, R * .08, -ar2 + Math.PI / 2); } }   /* outfield fence */
+      for (var ba = -60; ba <= 60; ba += 15) { var br = ba * Math.PI / 180, q = H(Math.sin(br) * 7, Math.cos(br) * 7); P("box", "#8a96a3", q[0], 0, q[1], 2.2, 4.2, .15, br); }        /* backstop */
+      var cages = has(p, /batting cage/i);
+      [[1, B * .95], [-1, B * .95]].forEach(function (d) { var q = H(d[0] * d[1], 1.5); P("box", "#5d6b78", q[0], 0, q[1], 1.6, 1.2, 6, d[0] * Math.PI / 4); P("box", "#8a6440", q[0], 0, q[1], .5, .45, 5.5, d[0] * Math.PI / 4); });   /* dugout benches */
+      var bsd = has(p, /batting cage/i) ? 1 : -1;
+      for (var bl2 = 0; bl2 < 3; bl2++) { var q = H(bsd * (B * 1.3 + bl2 * .8), 4 + bl2 * .7); P("box", "#9aa3ad", q[0], 0, q[1], 3.6, .3 + bl2 * .45, .8, -bsd * Math.PI / 4); }   /* bleachers */
+      used.push(full ? [0, hz - R * .45, R * .62] : [0, hz - DR * .4, DR * .75]);
+      if (has(p, /batting cage/i)) {                                   /* batting cages parallel to the third-base line, in foul ground */
+        var lanes = 2, LW = 4.3, LL = 21, HT = 3.6, t0 = B, d0 = 1.6, cry = -Math.PI * .75;
+        var U = function (t, d) { return H(-s2 * t - s2 * d, -s2 * t + s2 * d); };     /* t along the 3B line, d outward from it */
+        for (var ln = 0; ln < lanes; ln++) {
+          var dc = d0 + ln * (LW + .3) + LW / 2, mid = U(t0 + LL / 2, dc);
+          P("box", "#3d7d43", mid[0], 0, mid[1], LW, .06, LL, cry);                                    /* turf floor */
+          var mat = U(t0 + 1.6, dc); P("box", "#d8c9a6", mat[0], .06, mat[1], 1.6, .03, 1.6, cry);     /* batter's mat */
+          var mac = U(t0 + LL - .6, dc); P("box", "#4b5563", mac[0], 0, mac[1], .9, 1.1, .9, cry); P("box", "#f59e0b", mac[0], 1.1, mac[1], .5, .35, .5, cry);   /* pitching machine */
+          for (var tt = 0; tt <= LL; tt += 3.5) [-1, 1].forEach(function (sd) { var q = U(t0 + tt, dc + sd * LW / 2); P("box", "#2b2f33", q[0], 0, q[1], .14, HT, .14); });   /* poles */
+          [-1, 1].forEach(function (sd) { var q = U(t0 + LL / 2, dc + sd * LW / 2); P("box", "#2b2f33", q[0], HT - .12, q[1], .12, .12, LL, cry); P("box", "#3b4248", q[0], 0, q[1], .06, 1.2, LL, cry); });   /* top rail + low net */
+          [t0, t0 + LL].forEach(function (te) { var q = U(te, dc); P("box", "#2b2f33", q[0], HT - .12, q[1], LW, .12, .12, cry); });   /* end beams */
+        }
+        for (var ck = -1; ck <= 5; ck++) { var uc = U(t0 + ck * LL / 4, d0 + LW + .15); used.push([uc[0], uc[1], LW * 2.2]); }   /* keep trees off the cages, end to end */
+      }
     } else if (cat === "sports") {
       var fw = rad * 1.25, fd = rad * .8; P("box", "#4c9a45", 0, .01, 0, fw, .12, fd);
       [[0, -fd / 2, fw, .3], [0, fd / 2, fw, .3], [-fw / 2, 0, .3, fd], [fw / 2, 0, .3, fd], [0, 0, .3, fd]].forEach(function (l) { P("box", "#ffffff", l[0], .13, l[1], l[2], .03, l[3]); });
@@ -262,6 +302,14 @@
   function build() {
     if (!S.scene) return;
     var T = THREE; S.jets = []; begin();
+    /* ball fields and batting cages are no-tree zones for every park, so neighbours never plant on them */
+    S.keep = [];
+    S.places.forEach(function (p) { if (p.cat !== "sports" || !isDiamond(p)) return; var l = local(p.ll), rad = radius(p), R = rad * 1.25, B = R * .3, hz = R * .45, s2 = Math.SQRT1_2,
+        full = fieldStyle(p) === "baseball", rot = p.rot != null && !isNaN(p.rot) ? p.rot * Math.PI / 180 : rng(p.n)() * Math.PI * 2, cs = Math.cos(rot), sn = Math.sin(rot);
+      var W = function (dx, dz) { return [l[0] + dx * cs - dz * sn, l[1] + dx * sn + dz * cs]; };
+      var c0 = W(0, hz - (full ? R * .45 : B * .6)); S.keep.push([c0[0], c0[1], full ? R * .72 : B * 1.35]);
+      if (has(p, /batting cage/i)) { var t0 = B, d0 = 1.6;
+        for (var ck = 0; ck <= 4; ck++) { var t = t0 + ck * 21 / 4, d = d0 + 4.45, q = W(-s2 * t - s2 * d, hz - s2 * t + s2 * d); S.keep.push([q[0], q[1], 9]); } } });
     S.places.forEach(function (p) { var l = local(p.ll); model(p, l[0], l[1]); });
     flush(S.scene);
     /* beacons: floating diamonds in each place's colour */
@@ -362,6 +410,7 @@
     setAnimate: function (on) { S.animAll = !!on; if (S.map) S.map.triggerRepaint(); },
     setLight: function (p) { S.light = p; applyLight(); if (S.map) S.map.triggerRepaint(); },
     rebuild: function () { if (S.ok) { build(); S.map.triggerRepaint(); } },
+    isDiamond: function (p) { return isDiamond(p); }, fieldStyle: function (p) { return fieldStyle(p); },
     defaultRot: function (name) { return Math.round(rng(name)() * 360) % 360; },
     defaultAssetRot: function (id) { return Math.round(rng(id)() * 360) % 360; },
     setVisible: function (on) { S.hidden = !on; if (S.map) S.map.triggerRepaint(); },
@@ -410,7 +459,7 @@
     function blocked(x, z) { var l = bgrid[Math.floor(x / CELL) + "," + Math.floor(z / CELL)]; if (!l) return false;
       for (var i = 0; i < l.length; i++) { var e = l[i]; if (x > e[1] && x < e[2] && z > e[3] && z < e[4] && inRing(x, z, e[0])) return true; } return false; }
     /* places with our own models stay clear */
-    var keep = S.places.map(function (p) { var l = L(p.ll); return [l[0], l[1], PU3D.radius(p) * .7]; });
+    var keep = S.places.map(function (p) { var l = L(p.ll); return [l[0], l[1], PU3D.radius(p) * (p.cat === "sports" && PU3D.isDiamond(p) ? 1.35 : .7)]; });
     function nearModel(x, z) { for (var i = 0; i < keep.length; i++) { var k = keep[i]; if (Math.abs(x - k[0]) < k[2] && Math.abs(z - k[1]) < k[2]) return true; } return false; }
     var seen = {}, out = [];
     function add(x, z, gs) { if (out.length >= W.max || x < x0 || x > x1 || z < z0 || z > z1) return; var key = Math.round(x / gs) + "," + Math.round(z / gs);

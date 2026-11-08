@@ -111,7 +111,7 @@ button{font:inherit;color:inherit;cursor:pointer;touch-action:manipulation}
 .placebar{position:fixed;left:10px;right:10px;bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:7;border-radius:18px;padding:10px 12px;max-width:520px;margin:0 auto}
 .pbinfo{font-size:13px;color:var(--mut);margin-bottom:8px;text-align:center}
 .pbrot{display:flex;gap:6px;align-items:center;margin-bottom:8px}.pbrot button{flex:1;padding:10px 4px;border-radius:12px;border:1px solid var(--line);background:rgba(255,255,255,.07);font-weight:800;font-size:14px}
-.pbrot b{min-width:56px;text-align:center;font-size:15px}
+.pbrot b{min-width:48px;text-align:center;font-size:15px}#pbField{flex:1.3}
 .pbbtns{display:flex;gap:6px}.pbbtns button{flex:1;white-space:nowrap;padding:11px 6px;border-radius:12px;border:1px solid var(--line);background:rgba(255,255,255,.07);font-weight:800;font-size:13.5px}
 .pbbtns .p{flex:1.3;background:linear-gradient(135deg,#34d399,#22d3ee);color:#03221a;border-color:transparent}
 .placing .dock,.placing .card,.placing .top .rcol{display:none!important}.moving button{border:0;border-radius:10px;padding:6px 12px;background:rgba(0,0,0,.18);font-weight:800}
@@ -178,7 +178,7 @@ button{font:inherit;color:inherit;cursor:pointer;touch-action:manipulation}
 <div class="moving" id="moving" hidden><span id="movT"></span><button id="movX">Cancel</button></div>
 <div class="xhair" id="xhair" hidden aria-hidden="true"><i></i><b></b></div>
 <div class="placebar glass" id="placebar" hidden><div class="pbinfo" id="pbInfo">Satellite photo &middot; drag the map to line up the +</div>
-  <div class="pbrot" id="pbRot" hidden><button id="pbRL">&#10226; 15&deg;</button><b id="pbDeg">0&deg;</b><button id="pbRR">15&deg; &#10227;</button></div>
+  <div class="pbrot" id="pbRot" hidden><button id="pbRL">&#10226; 15&deg;</button><b id="pbDeg">0&deg;</b><button id="pbRR">15&deg; &#10227;</button><button id="pbField" hidden aria-label="Field shape">&#9918; Diamond</button></div>
   <div class="pbbtns"><button id="pbGps">&#128205; My GPS</button><button id="pbLook">Street map</button><button class="p" id="pbOk">Place here</button></div></div>
 
 <div class="card glass" id="card" hidden></div>
@@ -246,8 +246,8 @@ POOLS.forEach(function(q,k){
 });
 var BASE=PL.length;
 var GEO=LS.get("geo2",{}),OVR=LS.get("pins_ll2",{}),FAV=LS.get("fav5",{});
-var ROT=LS.get("pu-rot",{});
-PL.forEach(function(p){if(!KML[p.n]&&GEO[p.n]){p.ll=GEO[p.n];p.src=1}if(OVR[p.n]){p.ll=OVR[p.n];p.src=2}if(ROT[p.n]!=null)p.rot=ROT[p.n]});
+var ROT=LS.get("pu-rot",{}),FLD=LS.get("pu-field",{});
+PL.forEach(function(p){if(!KML[p.n]&&GEO[p.n]){p.ll=GEO[p.n];p.src=1}if(OVR[p.n]){p.ll=OVR[p.n];p.src=2}if(ROT[p.n]!=null)p.rot=ROT[p.n];if(FLD[p.n])p.field=FLD[p.n]});
 $("sub").textContent="Central Park \u00b7 "+PL.length+" places";
 
 /* ---------------- map ---------------- */
@@ -395,13 +395,16 @@ function pbInfo(){if(!map)return;var c=map.getCenter();$("pbInfo").textContent=(
 function finishPlace(ll){var cb=moveCb,d=moveDeg;moveOpt=null;endMove();if(cb&&ll)cb(ll,d)}
 function preview(){if(!moveOpt||!moveOpt.preview||!map)return;clearTimeout(pvT);pvT=setTimeout(function(){if(!moveOpt)return;var c=map.getCenter();moveOpt.preview([c.lng,c.lat],moveDeg)},120)}
 function turn(d){if(moveDeg==null)return;moveDeg=((moveDeg+d)%360+360)%360;$("pbDeg").textContent=moveDeg+"\u00b0";preview()}
-function startMove(i){var p=PL[i],orig={ll:p.ll.slice(),rot:p.rot},start=p.rot!=null?p.rot:(window.PU3D&&PU3D.defaultRot?PU3D.defaultRot(p.n):0);
+function startMove(i){var p=PL[i],orig={ll:p.ll.slice(),rot:p.rot,field:p.field},start=p.rot!=null?p.rot:(window.PU3D&&PU3D.defaultRot?PU3D.defaultRot(p.n):0);
   moveMode("Line up the + and turn "+p.n+" to match",function(ll,deg){p.ll=ll;p.rot=deg;p.src=2;
-    if(p.custom){PUAssets.saveProperty({id:p.custom,ll:ll,rot:deg,geo:"exact"}).then(function(){toast(p.n+" moved.");var j=PL.map(function(x){return x.custom}).indexOf(p.custom);if(j>=0)pick(j,{from:"map"})});return}
-    OVR[p.n]=p.ll;LS.set("pins_ll2",OVR);var R=LS.get("pu-rot",{});R[p.n]=deg;LS.set("pu-rot",R);
-    if(window.PUAssets&&PUAssets.saveFix)PUAssets.saveFix(p.n,ll,deg).catch(function(){});refresh();toast(p.n+" moved and turned.");pick(i,{from:"map"})},
-    {center:p.ll,zoom:18.4,rot:start,preview:function(ll,deg){p.ll=ll;p.rot=deg;if(window.PU3D)PU3D.rebuild()},cancel:function(){p.ll=orig.ll;p.rot=orig.rot;if(window.PU3D)PU3D.rebuild()}})}
-function endMove(){moving=-1;moveCb=null;$("moving").hidden=true;$("xhair").hidden=true;$("placebar").hidden=true;document.body.classList.remove("placing");if(window.PUAssets&&PUAssets.focus()&&map)map.easeTo({pitch:0,duration:600});
+    if(p.custom){PUAssets.saveProperty({id:p.custom,ll:ll,rot:deg,geo:"exact",field:p.field||""}).then(function(){toast(p.n+" moved.");var j=PL.map(function(x){return x.custom}).indexOf(p.custom);if(j>=0)pick(j,{from:"map"})});return}
+    OVR[p.n]=p.ll;LS.set("pins_ll2",OVR);var R=LS.get("pu-rot",{});R[p.n]=deg;LS.set("pu-rot",R);if(p.field){FLD[p.n]=p.field;LS.set("pu-field",FLD)}
+    if(window.PUAssets&&PUAssets.saveFix)PUAssets.saveFix(p.n,ll,deg,p.field?{field:p.field}:null).catch(function(){});refresh();toast(p.n+" moved and turned.");pick(i,{from:"map"})},
+    {center:p.ll,zoom:18.4,rot:start,preview:function(ll,deg){p.ll=ll;p.rot=deg;if(window.PU3D)PU3D.rebuild()},cancel:function(){p.ll=orig.ll;p.rot=orig.rot;p.field=orig.field;if(window.PU3D)PU3D.rebuild()}});
+  var fb=$("pbField");fb.hidden=p.cat!=="sports";if(!fb.hidden){var sty=function(){return window.PU3D&&PU3D.fieldStyle?PU3D.fieldStyle(p):"rect"};
+    var lab=function(){var t=sty();fb.innerHTML=t==="baseball"?"&#9918; Diamond":t==="infield"?"&#9670; Infield only":"&#9645; Rectangle"};lab();
+    fb.onclick=function(){var t=sty();p.field=t==="baseball"?"infield":t==="infield"?"rect":"baseball";lab();if(window.PU3D)PU3D.rebuild()}}}
+function endMove(){moving=-1;moveCb=null;$("pbField").hidden=true;$("moving").hidden=true;$("xhair").hidden=true;$("placebar").hidden=true;document.body.classList.remove("placing");if(window.PUAssets&&PUAssets.focus()&&map)map.easeTo({pitch:0,duration:600});
   if(prevLook){look=prevLook;prevLook=null;sat=look==="sat";if(map)map.setStyle(styleFor())}}
 $("movX").onclick=function(){if(moveOpt&&moveOpt.cancel)moveOpt.cancel();moveOpt=null;endMove()};
 $("pbRL").onclick=function(){turn(-15)};$("pbRR").onclick=function(){turn(15)};
@@ -530,9 +533,9 @@ window.bombaHome=function(){closeAll();endMove();if(tour)tourStop();closeCard();
 document.addEventListener("keydown",function(e){if(e.key==="Escape"){if(tour)tourStop();else closeAll()}});
 setInterval(function(){if(map&&look==="real"&&light==="auto"&&map.isStyleLoaded())try{map.setConfigProperty("basemap","lightPreset",preset());window.PU3D&&PU3D.setLight(preset())}catch(e){}},300000);
 function mergePlaces(){if(!window.PUAssets)return;var selId=sel>=BASE&&PL[sel]?PL[sel].custom:null;PL.length=BASE;
-  if(PUAssets.fixes)PUAssets.fixes().forEach(function(f){for(var k=0;k<BASE;k++)if(PL[k].n===f.label){if(f.lng!=null){PL[k].ll=[f.lng,f.lat];PL[k].src=2}if(f.props&&f.props.rot!=null)PL[k].rot=+f.props.rot;break}});
+  if(PUAssets.fixes)PUAssets.fixes().forEach(function(f){for(var k=0;k<BASE;k++)if(PL[k].n===f.label){if(f.lng!=null){PL[k].ll=[f.lng,f.lat];PL[k].src=2}if(f.props&&f.props.rot!=null)PL[k].rot=+f.props.rot;if(f.props&&f.props.field)PL[k].field=f.props.field;break}});
   PUAssets.places().filter(function(a){return a.lng!=null}).sort(function(a,b){return (a.created||0)-(b.created||0)}).forEach(function(a){var pr=a.props||{},c=CAT[pr.cat]?pr.cat:"other";
-    PL.push({n:a.label||"New property",cat:c,am:pr.am||"",addr:pr.addr||"",mca:pr.mca||"",ll:[a.lng,a.lat],src:2,pool:c==="pool",custom:a.id,geo:pr.geo||"",rot:pr.rot!=null&&pr.rot!==""?+pr.rot:undefined})});
+    PL.push({n:a.label||"New property",cat:c,am:pr.am||"",addr:pr.addr||"",mca:pr.mca||"",ll:[a.lng,a.lat],src:2,pool:c==="pool",custom:a.id,geo:pr.geo||"",rot:pr.rot!=null&&pr.rot!==""?+pr.rot:undefined,field:pr.field||undefined})});
   $("sub").textContent="Central Park \u00b7 "+PL.length+" places";refresh();if(!$("sheet").hidden)drawList();
   if(selId){var j=PL.map(function(x){return x.custom}).indexOf(selId);if(j<0)closeCard();else{sel=j;if(!$("card").hidden)showCard(j)}}else if(sel>=PL.length)closeCard()}
 function uniqueName(n,except){n=String(n||"").trim();return !PL.some(function(p){return p.n.toLowerCase()===n.toLowerCase()&&p.custom!==except})}
@@ -569,14 +572,23 @@ function propForm(p){closeAll();closeCard();var editing=!!(p&&p.custom),d=docume
 $("addProp").onclick=function(){if(window.PUAssets&&PUAssets.readOnly&&PUAssets.readOnly()){toast("View only \u2014 ask an admin for editor access.");return}propForm(null)};
 /* properties added after the original 79 (fixed ids so they appear once on every phone) */
 var SEED=[
- {id:"seed-west-baseball",name:"West Baseball Field",cat:"sports",am:"Baseball field",addr:"2500 Dayton St, Aurora, CO 80010",ll:[-104.8748157,39.7531056],geo:"exact"},
+ {id:"seed-west-baseball",name:"West Baseball Field",cat:"sports",am:"Baseball field",addr:"2500 Dayton St, Aurora, CO 80010",ll:[-104.8748157,39.7531056],rot:45,geo:"exact"},
  {id:"seed-east-baseball",name:"East Baseball Field",cat:"sports",am:"Baseball field",addr:"9901 E 25th Ave, Aurora, CO 80010",ll:[-104.8698,39.7532],geo:"todo"},
+ {id:"seed-practice-field",name:"Practice Field",cat:"sports",am:"Baseball practice field, Batting cages",addr:"Near E 26th Ave & Elmira St, Aurora, CO 80010",ll:[-104.8743344,39.7533403],rot:225,geo:"approx",field:"infield"},
  {id:"seed-burnett-baseball",name:"Burnett Baseball Field",cat:"sports",am:"Baseball field",addr:"Near N Dallas St & E 59th Pl, Denver, CO 80238",ll:[-104.8740027,39.8027833],geo:"exact"},
  {id:"seed-the-cube",name:"The Cube",cat:"facility",am:"Community event center, MCA meetings",addr:"8371 E Northfield Blvd, Denver, CO 80238",ll:[-104.8868,39.7881],geo:"todo"},
  {id:"seed-mca-office",name:"MCA Office",cat:"facility",am:"MCA administrative offices",addr:"8351 E Northfield Blvd, Denver, CO 80238",ll:[-104.8872,39.7881],geo:"todo"}];
 function seedPlaces(){if(!window.PUAssets||!PUAssets.saveProperty||(PUAssets.readOnly&&PUAssets.readOnly()))return Promise.resolve();var done=LS.get("pu-seeded",{}),have={};
   PUAssets.places().forEach(function(a){have[a.id]=1});var q=Promise.resolve();
-  SEED.forEach(function(x,k){if(done[x.id]||have[x.id])return;q=q.then(function(){return PUAssets.saveProperty({id:x.id,name:x.name,cat:x.cat,am:x.am,addr:x.addr,ll:x.ll,geo:x.geo||"approx",created:1762000000000+k}).then(function(){done[x.id]=1;LS.set("pu-seeded",done)},function(){})})});
+  SEED.forEach(function(x,k){if(done[x.id]||have[x.id])return;q=q.then(function(){return PUAssets.saveProperty({id:x.id,name:x.name,cat:x.cat,am:x.am,addr:x.addr,ll:x.ll,rot:x.rot,geo:x.geo||"approx",field:x.field||"",created:1762000000000+k}).then(function(){done[x.id]=1;LS.set("pu-seeded",done)},function(){})})});
+  if(!LS.get("pu-mig-infield",false)){var pf=PUAssets.places().filter(function(a){return a.id==="seed-practice-field"})[0];
+    if(pf&&pf.props&&pf.props.field==="baseball")q=q.then(function(){return PUAssets.saveProperty({id:pf.id,field:"infield"})});q=q.then(function(){LS.set("pu-mig-infield",true)})}
+  if(!LS.get("pu-mig-west-rot",false)){var wf=PUAssets.places().filter(function(a){return a.id==="seed-west-baseball"})[0];
+    if(wf&&wf.props&&(wf.props.rot==null||wf.props.rot===""))q=q.then(function(){return PUAssets.saveProperty({id:wf.id,rot:45})});q=q.then(function(){LS.set("pu-mig-west-rot",true)})}
+  if(!LS.get("pu-mig-practice2",false)){var pf2=PUAssets.places().filter(function(a){return a.id==="seed-practice-field"})[0];
+    if(pf2&&pf2.props&&pf2.props.geo==="approx")q=q.then(function(){return PUAssets.saveProperty({id:pf2.id,ll:[-104.8745104,39.7533403],rot:225})});q=q.then(function(){LS.set("pu-mig-practice2",true)})}
+  if(!LS.get("pu-mig-practice3",false)){var pf3=PUAssets.places().filter(function(a){return a.id==="seed-practice-field"})[0];
+    if(pf3&&pf3.props&&pf3.props.geo==="approx"&&Math.abs(pf3.lng-(-104.8745104))<2e-6)q=q.then(function(){return PUAssets.saveProperty({id:pf3.id,ll:[-104.8743344,39.7533403]})});q=q.then(function(){LS.set("pu-mig-practice3",true)})}
   return q.then(geoPlaces)}
 function geoPlaces(){if(!window.fetch||!window.PUAssets)return;PUAssets.places().filter(function(a){return a.props&&a.props.geo==="todo"&&/^\d/.test(a.props.addr||"")}).forEach(function(a){
   fetch("https://api.mapbox.com/search/geocode/v6/forward?q="+encodeURIComponent(a.props.addr)+"&proximity=-104.889,39.770&bbox=-104.93,39.74,-104.84,39.83&country=us&limit=1&access_token="+TOKEN)

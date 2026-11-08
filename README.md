@@ -104,3 +104,18 @@ Park card → 📍 opens "line up the + and turn": drag the map to put the + on 
 until the 3D model matches (it follows the + and turns live). Place here saves the spot and direction; Cancel puts it back.
 Moved/turned original parks are saved as team-synced park pins. Asset cards have Direction buttons (15°/45°) and
 "Move / turn on map". If satellite photos don't load, the app shows the reason and the menu status line keeps it.
+
+## Baseball diamonds (v2.3)
+Burnett, East, West and Practice fields (anything with "baseball" or "softball" in the name or amenities)
+show as 3D baseball diamonds: outfield fan and fence, skinned infield, grass infield, bases, home plate, mound,
+foul lines, backstop, dugout benches and bleachers. On any sports field, 📍 → "⚾ Diamond / ▭ Rectangle" switches
+the shape; ⟲ ⟳ aims home plate. The choice syncs to the team.
+- Practice Field (v2.4): baseball diamond with two batting cage lanes attached parallel to the third-base line
+  (turf, frame, batter's mat, pitching machine). Starts as an approximate pin near E 26th Ave & Elmira St, Aurora:
+  tap 📍 to place and turn it. Any diamond field whose amenities include "Batting cages" gets cages.
+- Practice Field (v2.5): "Infield only" style — all-dirt infield, no outfield or outfield fence; batting cages right beside
+  the dirt along the third-base line. Shape button on any sports field cycles ⚾ Diamond → ◆ Infield only → ▭ Rectangle.
+  Ball fields and cages are no-tree zones for every park's 3D trees.
+- v2.6: batting cages start at third base and run outward parallel to the left-field line, in foul ground.
+  West Baseball Field faces northeast (home plate southwest); Practice Field sits just past West's outfield fence,
+  home plate at its northeast corner with the infield facing West (approximate until placed with 📍).
