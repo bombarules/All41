@@ -15,6 +15,8 @@ button{font:inherit;color:inherit;cursor:pointer;touch-action:manipulation}
 .top>*{pointer-events:auto}
 .brand{display:flex;align-items:center;gap:8px;padding:7px 14px 7px 8px;border-radius:99px;font-weight:800;letter-spacing:.2px}
 .brand svg{width:26px;height:26px;flex:none}
+.brand{cursor:pointer;transition:padding .2s}.brand>div{display:none}.brand:not(.open){padding:8px;border-radius:14px}
+.brand.open>div{display:block}.brand.open{padding:7px 14px 7px 8px;border-radius:99px}
 .brand small{display:block;font-weight:500;font-size:11px;color:var(--mut);letter-spacing:0;margin-top:-2px}
 .sp{flex:1}
 .rbtn{width:42px;height:42px;border-radius:14px;display:grid;place-items:center;font-size:19px}
@@ -134,7 +136,7 @@ button{font:inherit;color:inherit;cursor:pointer;touch-action:manipulation}
 <div id="map" role="region" aria-label="3D map of Central Park parks and pools"></div>
 
 <div class="top">
-  <div class="brand glass" aria-label="Park Universe">
+  <div class="brand glass" id="brand" role="button" tabindex="0" aria-label="Park Universe" aria-expanded="false">
     <svg viewBox="0 0 32 32" aria-hidden="true"><defs><radialGradient id="pg" cx="12" cy="14" r="12" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#9BE88A"/><stop offset=".6" stop-color="#3C9A48"/><stop offset="1" stop-color="#17502A"/></radialGradient></defs><ellipse cx="16" cy="19" rx="14" ry="3.6" fill="none" stroke="#E8C4A0" stroke-width="1.6" transform="rotate(-14 16 19)"/><circle cx="16" cy="19" r="8.5" fill="url(#pg)"/><rect x="15.3" y="6.5" width="1.4" height="5" fill="#7A5232"/><circle cx="16" cy="6.2" r="3.4" fill="#4DB55A"/><path d="M7.6 21.2A14 3.6 0 0 0 30 17" transform="rotate(-14 16 19)" fill="none" stroke="#E8C4A0" stroke-width="1.6"/></svg>
     <div>Park Universe<small id="sub">Central Park · 79 places</small></div>
   </div>
@@ -286,7 +288,7 @@ function addLayers(){
   if(models&&window.THREE&&window.PU3D){try{map.addLayer(PU3D.layer(PL,{slot:std?"top":undefined,color:function(p){return catOf(p)[1]},onError:function(e){toast("3D models couldn't start: "+String(e&&e.message||e).slice(0,90),8000)}}));PU3D.setLight(look==="real"?preset():"day");PU3D.setSel(sel)}catch(e){}}
   map.addLayer(Object.assign({id:"pu-sel",type:"circle",source:"pu",filter:["==",["get","i"],sel],paint:{"circle-radius":["interpolate",["linear"],["zoom"],11,11,16,22],
     "circle-color":"rgba(0,0,0,0)","circle-stroke-color":"#ffffff","circle-stroke-width":3,"circle-emissive-strength":1}},slot));
-  map.addLayer(Object.assign({id:"pu-label",type:"symbol",source:"pu",layout:{"text-field":["get","name"],"text-size":["interpolate",["linear"],["zoom"],11,["case",["==",["get","pool"],1],12,10],16,["case",["==",["get","pool"],1],16,14]],
+  map.addLayer(Object.assign({id:"pu-label",type:"symbol",source:"pu",filter:["!=",["get","i"],sel],layout:{"text-field":["get","name"],"text-size":["interpolate",["linear"],["zoom"],11,["case",["==",["get","pool"],1],12,10],16,["case",["==",["get","pool"],1],16,14]],
     "text-anchor":"top","text-offset":[0,.9],"text-max-width":9,"symbol-sort-key":["get","rank"],"text-padding":3,"text-letter-spacing":.02},
     paint:look==="map"?{"text-color":["case",["==",["get","pool"],1],"#075985","#0b2238"],"text-halo-color":"#ffffff","text-halo-width":1.8}:{"text-color":["case",["==",["get","pool"],1],"#cffafe","#ffffff"],"text-halo-color":"rgba(4,12,22,.92)","text-halo-width":1.6,"text-emissive-strength":1}},slot));
   if(window.PUAssets){try{PUAssets.addLayers()}catch(e){}}
@@ -348,7 +350,7 @@ function showCard(i){var p=PL[i],c=catOf(p),q=p.addr||(p.n+", Central Park, Denv
   el.innerHTML='<button class="x" id="cX" aria-label="Close">&#10005;</button><h2></h2><span class="cat"><span class="dot" style="--c:'+c[1]+'"></span><span id="cC"></span></span>'+
    '<p class="addr" id="cA"></p><div class="am" id="cAm"></div><div class="btns">'+
    '<a class="p" target="_blank" rel="noopener" id="cDir">Directions</a><a target="_blank" rel="noopener" id="cMca">MCA page</a>'+
-   '<button class="ic fv" id="cFv" aria-label="Save place"></button><button class="ic" id="cSn" aria-label="Snow removal">&#10052;</button><button class="ic" id="cMv" aria-label="Move this pin">&#128205;</button><button class="ic" id="cEd" aria-label="Edit this property" hidden>&#9998;</button></div><div class="lytabs" id="cTabs"></div><p class="src" id="cSrc"></p>';
+   '<button class="ic fv" id="cFv" aria-label="Save place"></button><button class="ic" id="cSn" aria-label="Snow removal">&#10052;</button><button class="ic" id="cMv" aria-label="Move this pin">&#128205;</button><button class="ic" id="cEd" aria-label="Edit this property" hidden>&#9998;</button></div><div class="lytabs" id="cTabs"></div><p class="src" id="cSrc" hidden></p>';
   el.querySelector("h2").textContent=p.n;
   $("cC").textContent=c[0]+(EST[p.n]?" \u00b7 Est. "+EST[p.n]:"");
   $("cA").textContent=(p.addr||"").replace(/^R42G\+JG, /,"Plus code R42G+JG, ");
@@ -391,6 +393,8 @@ $("pbOk").onclick=function(){if(!map)return;var c=map.getCenter();finishPlace([+
 $("pbLook").onclick=function(){if(!map)return;var cam={center:map.getCenter(),zoom:map.getZoom()};if(look==="sat"){look=prevLook||"map";this.textContent="Satellite photo"}else{look="sat";this.textContent="Street map"}sat=look==="sat";map.setStyle(styleFor());map.jumpTo(cam);pbInfo()};
 $("pbGps").onclick=function(){var m=window.PUAssets&&PUAssets.me();if(!m){window.PUAssets&&PUAssets.startGPS();toast("Finding your GPS\u2026 tap again in a moment.");return}
   map.flyTo({center:[m.lng,m.lat],zoom:Math.max(map.getZoom(),19.6),duration:600});toast("+ moved to your GPS (\u00b1"+Math.round(m.acc)+" m). Fine-tune by dragging, then Place here.")};
+var brandT=0;function brandToggle(open){var b=$("brand");open=open==null?!b.classList.contains("open"):open;b.classList.toggle("open",open);b.setAttribute("aria-expanded",open);clearTimeout(brandT);if(open)brandT=setTimeout(function(){brandToggle(false)},4000)}
+$("brand").onclick=function(){brandToggle()};$("brand").onkeydown=function(e){if(e.key==="Enter"||e.key===" "){e.preventDefault();brandToggle()}};
 $("bMe").onclick=function(){window.PUAssets&&PUAssets.locateMe()};
 $("dAssets").onclick=function(){if(tour)tourStop();window.PUAssets&&PUAssets.openList({})};
 
