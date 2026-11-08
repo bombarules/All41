@@ -15,7 +15,7 @@
     </queries>
 
     <application
-        android:label="Orbit"
+        android:label="Park Universe"
         android:icon="@mipmap/ic_launcher"
         android:theme="@android:style/Theme.NoTitleBar.Fullscreen">
 
@@ -42,7 +42,7 @@
         <service
             android:name=".OrbitAccessibilityService"
             android:exported="true"
-            android:label="Orbit screen control"
+            android:label="Park Universe screen control"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
             <intent-filter>
                 <action android:name="android.accessibilityservice.AccessibilityService" />

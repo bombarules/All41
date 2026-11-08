@@ -5,14 +5,14 @@ can update one without touching the others.
 
 | Folder | What it is |
 |---|---|
-| `Orbit/` | The Orbit Android app: solar-system home, app drawer, live screens, phone sharing |
+| `Orbit/` | The Park Universe Android app (was Orbit): solar-system home, app drawer, live screens, phone sharing |
 | `bomba-live/` | The Overlook / Bomba Live web page for computers, phones and tablets |
 | `OverLook/` | `bomba-wall.js` to add to OverLook when it's wired in |
 
 All of them join the same wall: same wall code = same screens. See CONNECTING.md.
 
-## Get the Orbit app
-Actions tab → newest green run → download **Orbit-apk** → unzip → install `app-debug.apk`.
+## Get the Park Universe app
+Actions tab → newest green run → download **ParkUniverse-apk** → unzip → install `app-debug.apk`.
 
 ## Update later
 - Edit any file on GitHub (open it → pencil icon → Commit). The app rebuilds by itself.
