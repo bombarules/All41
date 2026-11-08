@@ -150,6 +150,7 @@ button{font:inherit;color:inherit;cursor:pointer;touch-action:manipulation}
   <button id="mLight" role="menuitem"><i>&#127769;</i><span id="mLightT">Light: Auto</span></button>
   <button id="m3d" role="menuitem"><i>&#127795;</i><span id="m3dT">Hide 3D models</span></button>
   <hr>
+  <button id="mSync" role="menuitem"><i>&#9729;</i><span>Team sync<small id="mSyncT" style="display:block;color:var(--mut);font-size:11.5px;font-weight:500"></small></span></button>
   <button id="mLayers" role="menuitem"><i>&#128477;</i>Map layers&hellip;</button>
   <button id="mDl" role="menuitem"><i>&#11015;</i>Download map&hellip;</button>
   <button id="mCopy" role="menuitem"><i>&#128203;</i>Copy pin positions</button>
@@ -354,7 +355,7 @@ function showCard(i){var p=PL[i],c=catOf(p),q=p.addr||(p.n+", Central Park, Denv
   $("cMca").href="https://www.mca80238.com/facilities/"+p.mca;
   var fv=$("cFv");fv.textContent=FAV[p.n]?"\u2605":"\u2606";fv.setAttribute("aria-pressed",!!FAV[p.n]);
   fv.onclick=function(){if(FAV[p.n])delete FAV[p.n];else FAV[p.n]=1;LS.set("fav5",FAV);refresh();showCard(i);if(!$("sheet").hidden)drawList()};
-  $("cSn").onclick=function(){openSnow(i)};
+  $("cSn").onclick=function(){if(window.PUAssets)PUAssets.openLayer("snow",p.n);else openSnow(i)};
   if(window.PUAssets){var tabs=$("cTabs");PUAssets.LAYERS.forEach(function(l){var b=document.createElement("button");b.id=l.id==="assets"?"cAs":"cTab_"+l.id;
       b.innerHTML='<i>'+l.e+'</i><span></span>';b.querySelector("span").textContent=l.name+" ("+PUAssets.layerCount(p.n,l.id)+")";b.onclick=function(){PUAssets.openLayer(l.id,p.n)};tabs.appendChild(b)});
     var dl=document.createElement("button");dl.id="cDl";dl.innerHTML='<i>\u2b07</i><span>Map</span>';dl.onclick=function(){PUAssets.openExport(p.n)};tabs.appendChild(dl);
@@ -448,7 +449,7 @@ $("tSpd").onclick=function(){spd=(spd+1)%SPEEDS.length;this.innerHTML=["1&times;
 
 /* ---------------- top controls & menu ---------------- */
 $("bView").onclick=function(){if(tour)tourStop();closeCard();map&&map.flyTo(Object.assign({},HOME,{duration:2200,essential:true}))};
-function menuText(){$("m3dStat").textContent="3D models: "+(window.PU3D?PU3D.status():"not loaded")+" \u00b7 v"+(window.BombaNative&&BombaNative.appVersion?BombaNative.appVersion():"1.7");$("mSatT").textContent="Map look: "+{map:"Bubble 3D",real:"Realistic 3D",sat:"Satellite"}[look];$("mLightT").textContent="Light: "+{auto:"Auto",day:"Day",dusk:"Dusk",night:"Night",dawn:"Dawn"}[light];$("m3dT").textContent=models?"Hide 3D models":"Show 3D models";$("mLight").hidden=look!=="real"}
+function menuText(){if(window.PUSync)$("mSyncT").textContent=PUSync.status();$("m3dStat").textContent="3D models: "+(window.PU3D?PU3D.status():"not loaded")+" \u00b7 v"+(window.PoolBridge&&PoolBridge.version?PoolBridge.version():"2.0");$("mSatT").textContent="Map look: "+{map:"Bubble 3D",real:"Realistic 3D",sat:"Satellite"}[look];$("mLightT").textContent="Light: "+{auto:"Auto",day:"Day",dusk:"Dusk",night:"Night",dawn:"Dawn"}[light];$("m3dT").textContent=models?"Hide 3D models":"Show 3D models";$("mLight").hidden=look!=="real"}
 $("bMenu").onclick=function(){var m=$("menu"),o=m.hidden;closeAll();m.hidden=!o;this.setAttribute("aria-expanded",o);menuText()};
 function closeMenu(){$("menu").hidden=true;$("bMenu").setAttribute("aria-expanded",false)}
 $("mSat").onclick=function(){var o=["map","real","sat"];look=o[(o.indexOf(look)+1)%3];sat=look==="sat";LS.set("pu-look3",look);menuText();if(map)map.setStyle(styleFor())};
@@ -456,6 +457,7 @@ $("mLight").onclick=function(){if(look!=="real")return;var o=["auto","day","dusk
 $("m3d").onclick=function(){models=!models;LS.set("pu-models",models);closeMenu();if(map){if(models&&window.PU3D_WORLD)PU3D_WORLD.attach(map);map.setStyle(styleFor())}};
 $("mCopy").onclick=function(){closeMenu();var o={};PL.forEach(function(p){o[p.n]=[+(+p.ll[0]).toFixed(6),+(+p.ll[1]).toFixed(6)]});var j=JSON.stringify(o,null,1);
   try{navigator.clipboard.writeText(j).then(function(){toast("Pin positions copied. Paste them in a message to keep or share them.")},function(){window.prompt("Copy these pin positions",j)})}catch(e){window.prompt("Copy these pin positions",j)}};
+$("mSync").onclick=function(){closeMenu();window.PUSync&&PUSync.open()};
 $("mLayers").onclick=function(){closeMenu();window.PUAssets&&PUAssets.openLayersPanel()};
 $("mDl").onclick=function(){closeMenu();window.PUAssets&&PUAssets.openExport(sel>=0?PL[sel].n:"")};
 $("mHome").onclick=function(){closeMenu();if(window.BombaNative&&BombaNative.homeSettings)BombaNative.homeSettings();else toast("Home screen settings are only in the Park Universe app.")};
@@ -505,9 +507,11 @@ window.__pu={PL:PL,pick:pick,tourStart:tourStart,tour:function(){return tour},ro
 var namesOn=true;function setNames(on){namesOn=on;if(!map)return;["pu-label","pu-sel-label","pu-dot","pu-glow"].forEach(function(id){if(map.getLayer(id))map.setLayoutProperty(id,"visibility",on?"visible":"none")})}
 function setTempLook(l){if(look===l)return;if(!prevLook)prevLook=look;look=l;sat=look==="sat";if(map)map.setStyle(styleFor())}
 function restoreLook(){if(prevLook){look=prevLook;prevLook=null;sat=look==="sat";if(map)map.setStyle(styleFor())}}
-window.PU={map:function(){return map},look:function(){return look},setTempLook:setTempLook,restoreLook:restoreLook,setNames:setNames,PL:PL,pick:pick,toast:toast,padFor:padFor,std:function(){return look==="real"},moveMode:moveMode,
+window.PU={openSnowRules:function(i){openSnow(i)},map:function(){return map},look:function(){return look},setTempLook:setTempLook,restoreLook:restoreLook,setNames:setNames,PL:PL,pick:pick,toast:toast,padFor:padFor,std:function(){return look==="real"},moveMode:moveMode,
   closeAll:function(){closeMenu();closeSheet();closeApps();$("snow").hidden=true;closeCard();if(tour)tourStop()}};
 })();
 </script>
 <script src="assets.js"></script>
+<script src="vendor/supabase.js"></script>
+<script src="sync.js"></script>
 </body></html>

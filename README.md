@@ -65,7 +65,28 @@ A tab opens a top-down map of the park with that layer's tools along the bottom.
 - **Fields**: ball field and batting cage outlines (quick names: West, Burnett, East, Practice, Batting cages);
   decorative 3D trees disappear inside them. Field gear: bases, portable cages, paint, chalk, drag screens,
   spike drags, racks, tampers, paint machines.
-- **Snow**: plow routes, shovel walks, snow storage and do-not-plow areas.
+- **Snow** (also the ❄ button on a park card): sidewalks to shovel and plow routes (lines), handicap ramps,
+  mailboxes, entrance gates, exit gates, steps, ice-melt spots and other shovel spots (points), parking lots,
+  snow storage and do-not-plow areas (outlines). Each has method (shovel, plow, blower, ice melt), ice melt yes/no
+  and priority. **Rules** opens the snow guidelines page for that park.
+- While mapping in any tab the header, 3D park models and decorative 3D trees are hidden for a clean top-down view.
 - **Menu ⋮ → Map layers**: switch each layer, the 3D models, decorative trees and park names on or off.
 - **⬇ Map / Menu → Download map**: pick a park and layers; save a map image (PNG, with legend, scale bar and
   north arrow), the map data (GeoJSON for GIS) or a spreadsheet (CSV).
+
+## Team sync (v2.0) — Supabase project "ParkUniverse"
+Menu ⋮ → **Team sync**.
+- **First time (owners only):** "First-time owner setup", enter the setup code, your owner email
+  (dchagolla@mca80238.com or bombarules@gmail.com) and a password. That makes your admin account.
+  Anything already on that phone uploads automatically.
+- **Add people (admins):** Team sync → Add a person: name, email, starting password, role.
+  They sign in from Team sync on their own phone. Roles: Admin (everything + people), Editor (add/change),
+  Viewer (look only), Pending (sees nothing until approved). Change roles, reset passwords or remove people anytime.
+- **Syncing:** every item and photo in every layer uploads and appears on everyone's phone, live.
+  Offline changes wait on the phone and upload when signal returns. Photos from teammates download when opened.
+- **Backup (OneDrive):** "Back up everything" or "Back up with photos" saves one file; pick OneDrive in the
+  save screen. "Restore a backup" adds anything missing from the phone.
+- **Forgot password:** crew tap "Forgot password?" on the sign-in screen; admins see a 🔑 next to them in People and
+  tap "Set new password". Owners use "Owner setup or new password" with the setup code to reset their own.
+- Server pieces: tables `profiles`, `items`, `photos`; private storage bucket `pu-photos`; edge function `pu-admin`.
+  Row-level security enforces the roles on the server.

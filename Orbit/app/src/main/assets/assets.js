@@ -43,12 +43,11 @@
     mainline: [["pipe", "Pipe size", "select:PIPE"], ["material", "Material", "select:MATERIAL"], ["depth", "Depth (in)", "num"]],
     ballfield: [["surface", "Surface", "select:SURFACE"], ["bases", "Base distance (ft)", "num"], ["fence", "Fence distance (ft)", "num"]],
     cage: [["lanes", "Lanes", "num"]],
-    route: [["priority", "Priority", "select:PRIORITY"], ["method", "Method", "select:METHOD"]],
-    walk: [["priority", "Priority", "select:PRIORITY"], ["method", "Method", "select:METHOD"]],
     storage: [], noplow: [] };
+  ["walk", "route", "ramp", "smailbox", "entrance", "exitgate", "steps", "icemelt", "shovel", "parking"].forEach(function (k) { F[k] = [["method", "Method", "select:METHOD"], ["melt", "Ice melt", "select:YESNO"], ["priority", "Priority", "select:PRIORITY"]]; });
   ["base", "bcage", "paint", "chalk", "dragscreen", "spikedrag", "rack", "tamper", "paintmachine", "gear"].forEach(function (k) { F[k] = [["qty", "Quantity", "num"], ["stored", "Stored at", "text"]]; });
   var LISTS = { SIZES: SIZES, PIPE: PIPE, MATERIAL: ["PVC Sch 40", "PVC Class 200", "PVC Class 315", "Poly", "Copper", "Ductile iron", "Other"],
-    SURFACE: ["Grass infield", "Skinned infield", "Turf", "Dirt"], PRIORITY: ["1 \u2013 first", "2", "3 \u2013 last"], METHOD: ["Plow", "Shovel", "Blower", "Skid steer"] };
+    SURFACE: ["Grass infield", "Skinned infield", "Turf", "Dirt"], PRIORITY: ["1 \u2013 first", "2", "3 \u2013 last"], METHOD: ["Shovel", "Plow", "Blower", "Skid steer", "Ice melt only"], YESNO: ["Yes", "No"] };
   /* [id, name, layer, geom, emoji or "#txt" badge, color] */
   var TYPES = [
     ["bench", "Bench", "assets", "point", "\ud83e\ude91", "#8d6e63"], ["trash", "Trash can", "assets", "point", "\ud83d\uddd1\ufe0f", "#2e7d32"], ["dog", "Dog station", "assets", "point", "\ud83d\udc15", "#43a047"],
@@ -65,11 +64,15 @@
     ["base", "Bases", "fields", "point", "#B", "#f5f5f4"], ["bcage", "Portable cage", "fields", "point", "\ud83e\udd45", "#475569"], ["paint", "Field paint", "fields", "point", "\ud83c\udfa8", "#db2777"],
     ["chalk", "Chalk", "fields", "point", "#Ch", "#e7e5e4"], ["dragscreen", "Drag screen", "fields", "point", "#DS", "#92400e"], ["spikedrag", "Spike drag", "fields", "point", "#SD", "#78350f"],
     ["rack", "Rack", "fields", "point", "#R", "#57534e"], ["tamper", "Tamper", "fields", "point", "#T", "#44403c"], ["paintmachine", "Paint machine", "fields", "point", "#PM", "#be185d"], ["gear", "Other field gear", "fields", "point", "#+", "#a8a29e"],
-    ["route", "Plow route", "snow", "line", "@line", "#60a5fa"], ["walk", "Shovel walk", "snow", "line", "@line", "#a5f3fc"],
-    ["storage", "Snow storage area", "snow", "polygon", "@poly", "#93c5fd"], ["noplow", "Do-not-plow area", "snow", "polygon", "@poly", "#ef4444"]];
+    ["walk", "Sidewalk to shovel", "snow", "line", "@line", "#0ea5e9"], ["route", "Plow route", "snow", "line", "@line", "#6366f1"],
+    ["ramp", "Handicap ramp", "snow", "point", "\u267f", "#2563eb"], ["smailbox", "Mailbox", "snow", "point", "\ud83d\udceb", "#3949ab"],
+    ["entrance", "Entrance gate", "snow", "point", "#IN", "#16a34a"], ["exitgate", "Exit gate", "snow", "point", "#OUT", "#dc2626"],
+    ["steps", "Steps / stairs", "snow", "point", "#ST", "#78716c"], ["icemelt", "Ice melt spot", "snow", "point", "\ud83e\uddc2", "#94a3b8"],
+    ["shovel", "Other shovel spot", "snow", "point", "\u2744\ufe0f", "#0284c7"],
+    ["parking", "Parking lot", "snow", "polygon", "@poly", "#64748b"], ["storage", "Snow storage area", "snow", "polygon", "@poly", "#93c5fd"], ["noplow", "Do-not-plow area", "snow", "polygon", "@poly", "#ef4444"]];
   var T = {}; TYPES.forEach(function (t) { T[t[0]] = { id: t[0], name: t[1], layer: t[2], geom: t[3], e: t[4], c: t[5] }; });
   var FIELD_NAMES = ["West field", "Burnett field", "East field", "Practice field", "Batting cages"];
-  var LINE_W = { lateral: 2.5, mainline: 4.5, route: 4, walk: 2.5 }, DASH = { walk: 1, route: 0 };
+  var LINE_W = { lateral: 2.5, mainline: 4.5, route: 5, walk: 3.5 }, DASH = { walk: 1, route: 0 };
   function tOf(a) { return T[a.type] || T.other; }
   function layerOf(a) { return (T[a.type] || T.other).layer; }
   function condList(a) { return COND_BY[layerOf(a)] || COND_BY.assets; }
@@ -89,10 +92,17 @@
   function tx(store, mode, fn) { return new Promise(function (res, rej) { var t = db.transaction(store, mode), s = t.objectStore(store), out = fn(s); t.oncomplete = function () { res(out && out.result !== undefined ? out.result : out); }; t.onerror = function () { rej(t.error); }; }); }
   function all(store) { return new Promise(function (res, rej) { var rq = db.transaction(store).objectStore(store).getAll(); rq.onsuccess = function () { res(rq.result || []); }; rq.onerror = function () { rej(rq.error); }; }); }
   function photosOf(id) { return new Promise(function (res) { var rq = db.transaction("photos").objectStore("photos").index("asset").getAll(id); rq.onsuccess = function () { res((rq.result || []).sort(function (a, b) { return b.date - a.date; })); }; rq.onerror = function () { res([]); }; }); }
-  function saveAsset(a) { a.updated = Date.now(); return tx("assets", "readwrite", function (s) { return s.put(a); }).then(function () {
-    var i = ASSETS.findIndex(function (x) { return x.id === a.id; }); if (i < 0) ASSETS.push(a); else ASSETS[i] = a; refresh(); }); }
-  function delAsset(a) { return photosOf(a.id).then(function (ph) { return tx("photos", "readwrite", function (s) { ph.forEach(function (p) { s.delete(p.id); }); }); })
-    .then(function () { return tx("assets", "readwrite", function (s) { s.delete(a.id); }); }).then(function () { ASSETS = ASSETS.filter(function (x) { return x.id !== a.id; }); refresh(); }); }
+  function saveAsset(a, remote) { if (!remote) { a.updated = Date.now(); a.dirty = true; } return tx("assets", "readwrite", function (s) { return s.put(a); }).then(function () {
+    var i = ASSETS.findIndex(function (x) { return x.id === a.id; }); if (i < 0) ASSETS.push(a); else ASSETS[i] = a; if (!remote) { refresh(); changed(); } }); }
+  var hooks = [];
+  function changed() { hooks.forEach(function (f) { try { f(); } catch (e) {} }); }
+  function tombstone(a) { try { var d = JSON.parse(localStorage.getItem("pu-del") || "[]"); d.push({ id: a.id, layer: layerOf(a), type: a.type }); localStorage.setItem("pu-del", JSON.stringify(d)); } catch (e) {} }
+  function delAsset(a, remote) { if (!remote && a.synced) tombstone(a);
+    return photosOf(a.id).then(function (ph) { return tx("photos", "readwrite", function (s) { ph.forEach(function (p) { s.delete(p.id); }); }); })
+    .then(function () { return tx("assets", "readwrite", function (s) { s.delete(a.id); }); }).then(function () { ASSETS = ASSETS.filter(function (x) { return x.id !== a.id; }); if (!remote) { refresh(); changed(); } }); }
+  /* a photo may live only in the cloud until it is first viewed */
+  function blobOf(p) { if (p.blob) return Promise.resolve(p.blob); if (!p.path || !window.PUSync || !PUSync.download) return Promise.resolve(null);
+    return PUSync.download(p.path).then(function (b) { if (!b) return null; p.blob = b; return tx("photos", "readwrite", function (s) { s.put(p); }).then(function () { return b; }); }).catch(function () { return null; }); }
   function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
 
   /* ---------------- helpers ---------------- */
@@ -120,6 +130,7 @@
     else if (a.type === "backflow" && p.nexttest) bits.push("test due " + p.nexttest);
     else if ((a.type === "lateral" || a.type === "mainline") && p.pipe) bits.push(p.pipe);
     else if (p.qty) bits.push("qty " + p.qty);
+    if (layerOf(a) === "snow") { if (p.method) bits.push(p.method); if (p.melt === "Yes") bits.push("ice melt"); if (p.priority) bits.push("priority " + p.priority.charAt(0)); }
     var m = measure(a); if (m) bits.push(m); return bits.join(" \u00b7 "); }
 
   /* ---------------- icons: tiny pictures, same on the map and in lists ---------------- */
@@ -171,8 +182,9 @@
   function applyVis() {
     var map = PU.map(); if (!map || !map.getLayer("as-icons")) return;
     POINT_LAYERS.concat(GEO_LAYERS).forEach(function (id) { if (!map.getLayer(id)) return; var base = id === "as-sel" ? ["==", ["get", "id"], selId || ""] : baseFilter[id]; map.setFilter(id, base ? ["all", lf(), base] : lf()); });
-    if (window.PU3D && PU3D.setVisible) PU3D.setVisible(VIS.models !== false);
-    if (window.PU3D && PU3D.setDecor) PU3D.setDecor(VIS.decor !== false);
+    var mapping = !!focusLayer;
+    if (window.PU3D && PU3D.setVisible) PU3D.setVisible(!mapping && VIS.models !== false);
+    if (window.PU3D && PU3D.setDecor) PU3D.setDecor(!mapping && VIS.decor !== false);
     if (PU.setNames) PU.setNames(VIS.names !== false);
   }
   var baseFilter = {}, LAYER_ERR = [];
@@ -214,7 +226,7 @@
     ["mouseenter"].forEach(function (ev) { ["as-icons", "as-line", "as-fill"].forEach(function (id) { map.on(ev, id, function () { map.getCanvas().style.cursor = "pointer"; }); map.on("mouseleave", id, function () { map.getCanvas().style.cursor = ""; }); }); });
     /* press and hold a point, then drag it */
     var holdT = 0, start = null, cand = null;
-    var down = function (e) { if (draw || armed) return; var f = e.features && e.features[0]; if (!f) return; cand = f.properties.id; start = e.point;
+    var down = function (e) { if (draw || armed || RO) return; var f = e.features && e.features[0]; if (!f) return; cand = f.properties.id; start = e.point;
       clearTimeout(holdT); holdT = setTimeout(function () { var a = byId(cand); if (!a) return; dragging = a; map.dragPan.disable(); if (navigator.vibrate) navigator.vibrate(30); PU.toast("Drag to move \u00b7 lift to drop", 1500); }, 480); };
     var move = function (e) { if (!dragging) { if (start && e.point && Math.hypot(e.point.x - start.x, e.point.y - start.y) > 8) { clearTimeout(holdT); start = null; } return; }
       dragging.lng = e.lngLat.lng; dragging.lat = e.lngLat.lat; var src = map.getSource("as"); if (src) src.setData(pointGJ()); if (e.preventDefault) e.preventDefault(); };
@@ -265,7 +277,7 @@
   }
   function addPhoto(asset, file) {
     return compress(file).then(function (blob) {
-      var ph = { id: uid(), asset: asset.id, date: Date.now(), blob: blob, lat: me ? me.lat : null, lng: me ? me.lng : null, acc: me ? me.acc : null };
+      var ph = { id: uid(), asset: asset.id, date: Date.now(), blob: blob, lat: me ? me.lat : null, lng: me ? me.lng : null, acc: me ? me.acc : null, synced: false };
       return tx("photos", "readwrite", function (s) { s.put(ph); }).then(function () { asset.photoCount = (asset.photoCount || 0) + 1; asset.lastPhoto = ph.date; return saveAsset(asset); });
     });
   }
@@ -323,7 +335,8 @@
 .dr-names button[aria-pressed=true]{background:#fff;color:#08121c}\
 .lyv label{display:flex;align-items:center;gap:10px;padding:11px 4px;border-bottom:1px solid var(--line);font-size:15px}\
 .lyv input{width:22px;height:22px;accent-color:#34d399}.lyv small{color:var(--mut);margin-left:auto;font-size:12.5px}\
-.layering .dock,.layering .card{display:none!important}';
+.layering .dock,.layering .card,.layering .top .brand{display:none!important}\
+.ly-top b{font-size:clamp(13px,3.6vw,15px)}.ly-types button{font-size:clamp(10px,2.8vw,11.5px)}';
   var st = document.createElement("style"); st.textContent = css; document.head.appendChild(st);
   var shell = document.createElement("div");
   shell.innerHTML = '<div class="scrim" id="asScrim" hidden></div>' +
@@ -331,7 +344,7 @@
     '<div class="as-body"><input class="search" id="asQ" type="search" placeholder="Search names, species, notes" autocomplete="off"><div class="chips" id="asChips" style="margin:8px 0"></div><div class="as-sum" id="asSum"></div><div id="asRows"></div>' +
     '<div class="as-act"><button id="asCsv">Export spreadsheet (CSV)</button><button id="asGeo">Export map file (GeoJSON)</button></div></div></div>' +
     '<div class="as-sheet glass" id="asSheet" hidden role="dialog" aria-label="Details"><div class="hd2"><button class="x" style="position:static" id="asBack" aria-label="Back">&larr;</button><h3 id="asT"></h3><button class="x" style="position:static" id="asX" aria-label="Close">&#10005;</button></div><div class="as-body" id="asBody"></div></div>' +
-    '<div class="ly-bar glass" id="lyBar" hidden><div class="ly-top"><b id="lyT"></b><button id="lyList">List</button><button id="lyDl">\u2b07</button><button class="ok" id="lyDone">Done</button></div><div class="ly-types" id="lyTypes"></div></div>' +
+    '<div class="ly-bar glass" id="lyBar" hidden><div class="ly-top"><b id="lyT"></b><button id="lyRules" hidden>Rules</button><button id="lyList">List</button><button id="lyDl">\u2b07</button><button class="ok" id="lyDone">Done</button></div><div class="ly-types" id="lyTypes"></div></div>' +
     '<div class="dr-bar glass" id="drBar" hidden><div class="dr-names" id="drNames" hidden></div><div class="dr-info" id="drInfo"></div><div class="dr-btns"><button id="drUndo">\u21b6 Undo</button><button id="drPt">\uff0b Point at +</button><button id="drSat">Satellite</button><button class="p" id="drOk">Finish</button><button id="drX">\u2715</button></div></div>' +
     '<datalist id="asSpecies">' + SPECIES.map(function (s) { return '<option value="' + esc(s) + '">'; }).join("") + '</datalist>';
   document.body.appendChild(shell);
@@ -370,16 +383,18 @@
       var sm = summary(a);
       b.querySelector("small").textContent = (listCtx.park ? "" : a.park + " \u00b7 ") + (sm ? sm + " \u00b7 " : "") + (a.cond || condList(a)[0]) + " \u00b7 " + (a.photoCount || 0) + " photo" + ((a.photoCount || 0) === 1 ? "" : "s") + (near && a.lng != null ? " \u00b7 " + Math.round(dkm(near, [a.lng, a.lat]) * 1000) + " m away" : "");
       if (isBad(a)) b.querySelector("small").style.color = COND_COL[Math.max(2, condList(a).indexOf(a.cond))];
-      if (a.lastPhoto) photosOf(a.id).then(function (ph) { if (ph[0]) { var im = document.createElement("img"); im.className = "th"; im.alt = ""; im.src = URL.createObjectURL(ph[0].blob); b.appendChild(im); } });
+      if (a.lastPhoto) photosOf(a.id).then(function (ph) { if (ph[0]) blobOf(ph[0]).then(function (bl) { if (!bl) return; var im = document.createElement("img"); im.className = "th"; im.alt = ""; im.src = URL.createObjectURL(bl); b.appendChild(im); }); });
       b.onclick = function () { openAsset(a.id, true); }; rows.appendChild(b); });
   }
   $("asQ").oninput = drawList;
+  function setRO(on) { RO = !!on; $("asAddBtn").hidden = RO; if (focusLayer) drawLayerBar(); }
   $("asAddBtn").onclick = function () { if (listCtx.layer && listCtx.layer !== "assets") { showSheet(null); openLayer(listCtx.layer, listCtx.park); return; } startAdd({ park: listCtx.park, type: fType !== "all" ? fType : null, layer: listCtx.layer }); };
 
   /* --- add a point (type -> GPS or + crosshair) --- */
   var gpsWait = null;
   function stopGPSWait() { if (gpsWait) { gpsListeners = gpsListeners.filter(function (f) { return f !== gpsWait; }); gpsWait = null; } }
   function startAdd(ctx) {
+    if (RO) { PU.toast("View only \u2014 ask an admin for editor access."); return; }
     ctx = ctx || {}; if (PU.closeAll && !focusLayer) PU.closeAll(); showSheet("asSheet"); $("asT").textContent = "Add";
     if (ctx.type) { var tt = T[ctx.type]; if (tt && tt.geom !== "point") { showSheet(null); return startDraw(ctx.type, { park: ctx.park }); } return chooseLocation(ctx); }
     var body = $("asBody"), lyr = ctx.layer || "assets";
@@ -416,22 +431,28 @@
   }
 
   /* --- layer workspace: top-down park map with that layer's tools --- */
-  var focusLayer = null, focusPark = null, armed = null, lastSize = SIZES[0];
+  var focusLayer = null, focusPark = null, armed = null, lastSize = SIZES[0], RO = false;
   function openLayer(layer, park) {
     if (PU.closeAll) PU.closeAll(); showSheet(null);
+    if (!focusLayer) wsKeep = { decor: VIS.decor, models: VIS.models };
     focusLayer = layer; focusPark = park || null; armed = null;
     if (VIS[layer] === false) { VIS[layer] = true; saveVis(); }
-    applyVis(); document.body.classList.add("layering"); $("lyBar").hidden = false; drawLayerBar();
+    applyVis(); if (window.PU3D) { if (PU3D.setDecor) PU3D.setDecor(false); if (PU3D.setVisible) PU3D.setVisible(false); }
+    document.body.classList.add("layering"); $("lyBar").hidden = false; $("lyRules").hidden = layer !== "snow" || !park; drawLayerBar();
     var c = park ? parkLL(park) : null, map = PU.map();
-    if (map) map.flyTo({ center: c || map.getCenter(), zoom: c ? 18.4 : Math.max(map.getZoom(), 17), pitch: 0, bearing: 0, duration: 1200, essential: true });
+    var pk = park ? PU.PL.filter(function (x) { return x.n === park; })[0] : null, z = !pk ? Math.max(map ? map.getZoom() : 17, 17) : pk.n === "Central Park" ? 16.4 : pk.cat === "large" ? 17.1 : /sports|pool|amph/.test(pk.cat) ? 17.5 : 17.9;
+    var cw = map ? (map.getCanvas().clientWidth || 400) : 400; z -= Math.max(0, (420 - cw) / 420);
+    if (map) map.flyTo({ center: c || map.getCenter(), zoom: z, pitch: 0, bearing: 0, duration: 1200, essential: true, padding: { top: 20, bottom: 150, left: 10, right: 10 } });
   }
-  function closeLayer() { disarm(); focusLayer = null; focusPark = null; $("lyBar").hidden = true; document.body.classList.remove("layering"); applyVis();
+  var wsKeep = null;
+  function closeLayer() { disarm(); focusLayer = null; focusPark = null; $("lyBar").hidden = true; document.body.classList.remove("layering"); wsKeep = null; applyVis();
     var map = PU.map(); if (map) map.easeTo({ pitch: 58, duration: 900 }); }
   function drawLayerBar() {
     var l = L[focusLayer]; if (!l) return;
     var n = ASSETS.filter(function (a) { return layerOf(a) === focusLayer && (!focusPark || a.park === focusPark); }).length;
     $("lyT").textContent = l.e + " " + l.name + (focusPark ? " \u00b7 " + focusPark : "") + " (" + n + ")";
     var box = $("lyTypes"); box.innerHTML = "";
+    if (RO) { box.innerHTML = '<div class="mut" style="padding:8px 6px;font-size:13px">View only \u2014 ask an admin for editor access to add or change items.</div>'; return; }
     TYPES.filter(function (t) { return t[2] === focusLayer; }).forEach(function (t) {
       var b = document.createElement("button"); b.setAttribute("aria-pressed", armed === t[0]);
       var hint = t[3] === "point" ? "tap map" : t[3] === "line" ? "draw line" : "outline";
@@ -441,7 +462,7 @@
   }
   function arm(type) {
     armed = type; drawLayerBar();
-    var t = T[type], msg = "Tap the map to drop " + t.name.toLowerCase() + "s. Tap the button again when done.";
+    var t = T[type], msg = "Tap the map to drop " + t.name.toLowerCase() + (/s$/.test(t.name) ? "" : "s") + ". Tap the button again when done.";
     if (type === "head") { msg = "Tap the map to drop sprinkler heads (" + lastSize + "). Long-press a head to drag it."; }
     PU.toast(msg, 4000);
     if (type === "head") { pickSize(); }
@@ -449,7 +470,8 @@
   function disarm() { armed = null; if (focusLayer) drawLayerBar(); var ps = $("asSizePick"); if (ps) ps.remove(); }
   function pickSize() {
     var old = $("asSizePick"); if (old) old.remove();
-    var d = document.createElement("div"); d.id = "asSizePick"; d.className = "dr-names glass"; d.style.cssText = "position:fixed;left:8px;right:8px;bottom:calc(140px + env(safe-area-inset-bottom,0px));z-index:8;padding:8px;border-radius:14px;max-width:640px;margin:0 auto";
+    var d = document.createElement("div"); d.id = "asSizePick"; d.className = "dr-names glass"; var bh = ($("lyBar").offsetHeight || 130) + 18;
+    d.style.cssText = "position:fixed;left:8px;right:8px;bottom:calc(" + bh + "px + env(safe-area-inset-bottom,0px));z-index:8;padding:8px;border-radius:14px;max-width:640px;margin:0 auto";
     SIZES.forEach(function (sz) { var b = document.createElement("button"); b.textContent = sz; b.setAttribute("aria-pressed", sz === lastSize); b.onclick = function () { lastSize = sz; pickSize(); }; d.appendChild(b); });
     document.body.appendChild(d);
   }
@@ -458,6 +480,7 @@
     create({ type: armed, park: focusPark || nearestPark(ll) }, ll[0], ll[1], null, props, true).then(function (a) { PU.toast(tOf(a).name + " added \u00b7 tap it to edit", 1400); });
   }
   $("lyDone").onclick = closeLayer;
+  $("lyRules").onclick = function () { disarm(); var i = PU.PL.map(function (p) { return p.n; }).indexOf(focusPark); if (i >= 0 && PU.openSnowRules) PU.openSnowRules(i); };
   $("lyList").onclick = function () { disarm(); openList({ park: focusPark, layer: focusLayer }); };
   $("lyDl").onclick = function () { disarm(); openExport(focusPark, focusLayer); };
 
@@ -564,20 +587,23 @@
     }
     $("asNav").onclick = function () { location.href = "https://www.google.com/maps/dir/?api=1&destination=" + a.lat + "," + a.lng; };
     $("asDel").onclick = function () { if (confirm("Delete this " + t.name.toLowerCase() + " and all its photos?")) delAsset(a).then(function () { PU.toast("Deleted."); if (focusLayer) showSheet(null); else openList(listCtx.park ? listCtx : { park: a.park }); }); };
+    if (RO) { [].forEach.call(body.querySelectorAll("input,select,textarea,#asCond button"), function (el) { el.disabled = true; });
+      ["asCam", "asGal", "asReGps", "asReTap", "asShape", "asRedraw", "asDel"].forEach(function (k) { var el = $(k); if (el) el.hidden = true; }); }
     body.scrollTop = y;
     curPhotos.forEach(function (u) { URL.revokeObjectURL(u); }); curPhotos = [];
     photosOf(a.id).then(function (ph) {
       var box = $("asPh"); if (!box) return;
       if (!ph.length) { $("asHeroBox").innerHTML = '<div class="empty" style="padding:16px 0">No photos yet. Take one now so there is a dated record of its condition.</div>'; return; }
-      var u0 = URL.createObjectURL(ph[0].blob); curPhotos.push(u0);
-      $("asHeroBox").innerHTML = '<img class="as-hero" alt="Latest photo" src="' + u0 + '"><div class="src">Latest photo \u00b7 ' + fmtDate(ph[0].date) + '</div>';
+      $("asHeroBox").innerHTML = '<img class="as-hero" alt="Latest photo"><div class="src">Latest photo \u00b7 ' + fmtDate(ph[0].date) + (ph[0].blob ? "" : " \u00b7 loading\u2026") + '</div>';
       $("asHeroBox").querySelector("img").onclick = function () { view(ph, 0); };
-      ph.forEach(function (p, i) { var u = i === 0 ? u0 : URL.createObjectURL(p.blob); if (i) curPhotos.push(u);
-        var f = document.createElement("figure"); f.innerHTML = '<img alt=""><figcaption></figcaption>'; f.querySelector("img").src = u; f.querySelector("figcaption").textContent = new Date(p.date).toLocaleDateString();
-        f.onclick = function () { view(ph, i); }; box.appendChild(f); });
+      ph.forEach(function (p, i) { var f = document.createElement("figure"); f.innerHTML = '<img alt=""><figcaption></figcaption>'; f.querySelector("figcaption").textContent = new Date(p.date).toLocaleDateString();
+        f.onclick = function () { view(ph, i); }; box.appendChild(f);
+        blobOf(p).then(function (bl) { if (!bl) return; var u = URL.createObjectURL(bl); curPhotos.push(u); f.querySelector("img").src = u;
+          if (i === 0 && $("asHeroBox")) { var h = $("asHeroBox").querySelector("img"); if (h) h.src = u; var c = $("asHeroBox").querySelector(".src"); if (c) c.textContent = "Latest photo \u00b7 " + fmtDate(p.date); } }); });
     });
   }
   function view(ph, i) {
+    if (!ph[i].blob) { blobOf(ph[i]).then(function (b) { if (b) view(ph, i); else PU.toast("That photo isn't downloaded yet. Check your connection."); }); return; }
     var v = document.createElement("div"); v.className = "as-view"; var u = URL.createObjectURL(ph[i].blob);
     v.innerHTML = '<img alt=""><button aria-label="Close">&#10005;</button><p></p>'; v.querySelector("img").src = u;
     v.querySelector("p").textContent = fmtDate(ph[i].date) + (ph[i].lat != null ? " \u00b7 taken at " + ph[i].lat.toFixed(5) + ", " + ph[i].lng.toFixed(5) : "") + "  (" + (i + 1) + " of " + ph.length + ")";
@@ -700,5 +726,15 @@
   window.PUAssets = { TYPES: TYPES, T: T, LAYERS: LAYERS, addLayers: addLayers, openList: openList, startAdd: startAdd, openAsset: openAsset, locateMe: locateMe, counts: counts, layerCount: layerCount, iconURL: iconURL,
     openLayer: openLayer, closeLayer: closeLayer, openLayersPanel: openLayersPanel, openExport: openExport, startDraw: startDraw, vis: function () { return VIS; }, focus: function () { return focusLayer; },
     close: function () { closeAll(); if (draw) endDraw(); }, ready: ready, me: function () { return me; }, startGPS: function () { return startGPS(); }, list: function () { return ASSETS; },
-    layerErrors: function () { return LAYER_ERR.slice(); }, _addPhotoBlob: function (id, file) { return addPhoto(byId(id), file); }, _me: function (m) { me = m; }, _lineLen: lineLen, _polyArea: polyArea };
+    layerErrors: function () { return LAYER_ERR.slice(); }, setReadOnly: setRO, readOnly: function () { return RO; },
+    onChange: function (f) { hooks.push(f); },
+    _sync: { all: function () { return ASSETS.slice(); }, layerOf: layerOf,
+      markClean: function (id, stamp) { var a = byId(id); if (a && a.updated === stamp) { a.dirty = false; a.synced = true; return saveAsset(a, true); } return Promise.resolve(); },
+      applyRemote: function (a) { var l = byId(a.id); if (l && l.dirty) return Promise.resolve(false); return saveAsset(a, true).then(function () { return true; }); },
+      removeRemote: function (id) { var l = byId(id); if (!l || l.dirty) return Promise.resolve(false); return delAsset(l, true).then(function () { return true; }); },
+      photos: function () { return all("photos"); }, putPhoto: function (p) { return tx("photos", "readwrite", function (s) { s.put(p); }); },
+      delPhoto: function (id) { return tx("photos", "readwrite", function (s) { s.delete(id); }); },
+      recount: function () { return all("photos").then(function (ps) { var n = {}, last = {}; ps.forEach(function (p) { n[p.asset] = (n[p.asset] || 0) + 1; last[p.asset] = Math.max(last[p.asset] || 0, p.date); });
+        return Promise.all(ASSETS.map(function (a) { var c = n[a.id] || 0; if (c !== (a.photoCount || 0)) { a.photoCount = c; a.lastPhoto = last[a.id] || null; return saveAsset(a, true); } })); }); },
+      refresh: function () { refresh(); }, blobOf: blobOf }, _addPhotoBlob: function (id, file) { return addPhoto(byId(id), file); }, _me: function (m) { me = m; }, _lineLen: lineLen, _polyArea: polyArea };
 })();
