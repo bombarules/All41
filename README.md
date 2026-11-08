@@ -98,3 +98,9 @@ MCA Office (8351 E Northfield Blvd). East field, The Cube and MCA Office find th
 first time the app is online. To add more: Places → ＋ Property (name, type, address, amenities, optional MCA page),
 then use GPS or line up the + on the satellite map. Edit or delete with ✎ on the property's card.
 Added properties sync to the whole team.
+
+## Turning parks and assets (v2.2)
+Park card → 📍 opens "line up the + and turn": drag the map to put the + on the real spot and use ⟲ 15° / 15° ⟳
+until the 3D model matches (it follows the + and turns live). Place here saves the spot and direction; Cancel puts it back.
+Moved/turned original parks are saved as team-synced park pins. Asset cards have Direction buttons (15°/45°) and
+"Move / turn on map". If satellite photos don't load, the app shows the reason and the menu status line keeps it.

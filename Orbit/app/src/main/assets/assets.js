@@ -69,13 +69,13 @@
     ["entrance", "Entrance gate", "snow", "point", "#IN", "#16a34a"], ["exitgate", "Exit gate", "snow", "point", "#OUT", "#dc2626"],
     ["steps", "Steps / stairs", "snow", "point", "#ST", "#78716c"], ["icemelt", "Ice melt spot", "snow", "point", "\ud83e\uddc2", "#94a3b8"],
     ["shovel", "Other shovel spot", "snow", "point", "\u2744\ufe0f", "#0284c7"],
-    ["property", "Property", "places", "point", "\ud83d\udccd", "#22d3ee"],
+    ["property", "Property", "places", "point", "\ud83d\udccd", "#22d3ee"], ["parkfix", "Park pin", "places", "point", "\ud83d\udccd", "#22d3ee"],
     ["parking", "Parking lot", "snow", "polygon", "@poly", "#64748b"], ["storage", "Snow storage area", "snow", "polygon", "@poly", "#93c5fd"], ["noplow", "Do-not-plow area", "snow", "polygon", "@poly", "#ef4444"]];
   var T = {}; TYPES.forEach(function (t) { T[t[0]] = { id: t[0], name: t[1], layer: t[2], geom: t[3], e: t[4], c: t[5] }; });
   var FIELD_NAMES = ["West field", "Burnett field", "East field", "Practice field", "Batting cages"];
   var LINE_W = { lateral: 2.5, mainline: 4.5, route: 5, walk: 3.5 }, DASH = { walk: 1, route: 0 };
   function tOf(a) { return T[a.type] || T.other; }
-  function isPlace(a) { return a.type === "property"; }
+  function isPlace(a) { return a.type === "property" || a.type === "parkfix"; }
   function layerOf(a) { return (T[a.type] || T.other).layer; }
   function condList(a) { return COND_BY[layerOf(a)] || COND_BY.assets; }
   function isBad(a) { var l = condList(a), i = l.indexOf(a.cond); return i >= 2; }
@@ -254,7 +254,7 @@
     var a = o.id ? byId(o.id) : null;
     if (!a) a = { id: o.id || uid(), type: "property", created: o.created || Date.now(), photoCount: 0, cond: "Good", notes: "", props: {} };
     if (o.name != null) a.label = String(o.name).trim().slice(0, 60);
-    ["cat", "am", "addr", "mca", "geo"].forEach(function (k) { if (o[k] != null) a.props[k] = String(o[k]).trim(); });
+    ["cat", "am", "addr", "mca", "geo", "rot"].forEach(function (k) { if (o[k] != null) a.props[k] = String(o[k]).trim(); });
     if (o.ll) { a.lng = +(+o.ll[0]).toFixed(7); a.lat = +(+o.ll[1]).toFixed(7); a.acc = o.acc == null ? null : o.acc; }
     a.park = a.label;
     return saveAsset(a).then(function () { return a; });
@@ -577,7 +577,8 @@
       '<div class="as-f"><label for="asPark">Park</label><select id="asPark"></select></div>' +
       '<div class="as-f"><label for="asNotes">Notes</label><textarea id="asNotes" placeholder="' + (layerOf(a) === "trees" ? "Health notes, pests, pruning, staking\u2026" : layerOf(a) === "irrigation" ? "Brand, repairs, coverage, schedule\u2026" : "Material, model, damage, work done\u2026") + '"></textarea></div>' +
       '<p class="src" id="asLoc"></p>' +
-      '<div class="as-act">' + (geom === "point" ? '<button id="asReGps">\ud83d\udccd Update GPS here</button><button id="asReTap">Move on satellite map</button>' : '<button id="asShape">\u270f\ufe0f Edit shape</button><button id="asRedraw">Redraw</button>') +
+      (geom === "point" && /bench|trash|dog|grill|bathroom|firepit|fountain|light|mailbox|newspaper|table|playground|field|sign|structure|flowerpot|other|tree|stump|site/.test(a.type) ? '<div class="as-f"><label>Direction</label><div class="as-seg" id="asTurn"><button data-d="-45">\u27f2 45\u00b0</button><button data-d="-15">\u27f2 15\u00b0</button><b id="asDeg" style="align-self:center;min-width:48px;text-align:center"></b><button data-d="15">15\u00b0 \u27f3</button><button data-d="45">45\u00b0 \u27f3</button></div></div>' : "") +
+      '<div class="as-act">' + (geom === "point" ? '<button id="asReGps">\ud83d\udccd Update GPS here</button><button id="asReTap">Move / turn on map</button>' : '<button id="asShape">\u270f\ufe0f Edit shape</button><button id="asRedraw">Redraw</button>') +
       '<button id="asNav">Directions</button><button class="d" id="asDel">Delete</button></div>';
     conds.forEach(function (c, i) { var b = document.createElement("button"); b.textContent = c; b.style.setProperty("--c", COND_COL[i]); b.setAttribute("aria-pressed", (a.cond || conds[0]) === c);
       b.onclick = function () { a.cond = c; saveAsset(a).then(function () { openAsset(a.id, false, true); }); }; $("asCond").appendChild(b); });
@@ -592,9 +593,16 @@
     $("asLoc").textContent = (geom === "point" ? "GPS " + a.lat.toFixed(6) + ", " + a.lng.toFixed(6) + " \u00b7 " + fmtAcc(a.acc) : (a.coords ? a.coords.length : 0) + " points") + " \u00b7 added " + fmtDate(a.created) + (a.updated && a.updated - a.created > 60000 ? " \u00b7 updated " + fmtDate(a.updated) : "");
     $("asCam").onclick = function () { startGPS(); pickPhoto(true, function (f) { addPhoto(a, f).then(function () { PU.toast("Photo saved."); openAsset(a.id, false); }, function () { PU.toast("Couldn't read that photo."); }); }); };
     $("asGal").onclick = function () { pickPhoto(false, function (f) { addPhoto(a, f).then(function () { PU.toast("Photo saved."); openAsset(a.id, false); }, function () { PU.toast("Couldn't read that photo."); }); }); };
+    if ($("asTurn")) { var curRot = function () { var r = a.props && a.props.rot; return r != null && r !== "" ? +r : (window.PU3D && PU3D.defaultAssetRot ? PU3D.defaultAssetRot(a.id) : 0); };
+      $("asDeg").textContent = curRot() + "\u00b0";
+      [].forEach.call($("asTurn").querySelectorAll("button"), function (b) { b.onclick = function () { a.props = a.props || {}; a.props.rot = ((curRot() + (+b.dataset.d)) % 360 + 360) % 360; $("asDeg").textContent = a.props.rot + "\u00b0"; saveAsset(a); }; }); }
     if (geom === "point") {
       $("asReGps").onclick = function () { chooseRelocate(a); };
-      $("asReTap").onclick = function () { showSheet(null); PU.moveMode("Line up the + with the " + t.name.toLowerCase(), function (ll) { a.lng = +ll[0].toFixed(7); a.lat = +ll[1].toFixed(7); a.acc = null; saveAsset(a).then(function () { openAsset(a.id, false); }); }, { center: [a.lng, a.lat] }); };
+      $("asReTap").onclick = function () { showSheet(null); var orig = { lng: a.lng, lat: a.lat, rot: a.props && a.props.rot };
+        var start = orig.rot != null && orig.rot !== "" ? +orig.rot : (window.PU3D && PU3D.defaultAssetRot ? PU3D.defaultAssetRot(a.id) : 0);
+        PU.moveMode("Line up the + with the " + t.name.toLowerCase(), function (ll, deg) { a.lng = +ll[0].toFixed(7); a.lat = +ll[1].toFixed(7); a.acc = null; a.props = a.props || {}; if (deg != null) a.props.rot = deg; saveAsset(a).then(function () { openAsset(a.id, false); }); },
+          { center: [a.lng, a.lat], rot: start, preview: function (ll, deg) { a.props = a.props || {}; a.lng = ll[0]; a.lat = ll[1]; a.props.rot = deg; refresh(); },
+            cancel: function () { a.lng = orig.lng; a.lat = orig.lat; a.props.rot = orig.rot; refresh(); } }); };
     } else {
       $("asShape").onclick = function () { showSheet(null); startDraw(a.type, { coords: a.coords, edit: a, park: a.park }); };
       $("asRedraw").onclick = function () { showSheet(null); startDraw(a.type, { coords: [], edit: a, park: a.park }); };
@@ -741,7 +749,12 @@
     openLayer: openLayer, closeLayer: closeLayer, openLayersPanel: openLayersPanel, openExport: openExport, startDraw: startDraw, vis: function () { return VIS; }, focus: function () { return focusLayer; },
     close: function () { closeAll(); if (draw) endDraw(); }, ready: ready, me: function () { return me; }, startGPS: function () { return startGPS(); }, list: function () { return ASSETS.filter(function (a) { return !isPlace(a); }); },
     layerErrors: function () { return LAYER_ERR.slice(); },
-    places: function () { return ASSETS.filter(isPlace); }, saveProperty: saveProperty, deleteProperty: function (id) { var a = byId(id); return a ? delAsset(a) : Promise.resolve(); },
+    places: function () { return ASSETS.filter(function (a) { return a.type === "property"; }); },
+    fixes: function () { return ASSETS.filter(function (a) { return a.type === "parkfix"; }); },
+    saveFix: function (name, ll, rot) { if (RO) { PU.toast("View only \u2014 ask an admin for editor access."); return Promise.reject(new Error("view only")); }
+      var id = "fix-" + String(name).toLowerCase().replace(/[^a-z0-9]+/g, "-"), a = byId(id) || { id: id, type: "parkfix", created: Date.now(), photoCount: 0, cond: "Good", notes: "", props: {} };
+      a.label = name; a.park = name; if (ll) { a.lng = +(+ll[0]).toFixed(7); a.lat = +(+ll[1]).toFixed(7); } if (rot != null) a.props.rot = Math.round(rot) % 360; return saveAsset(a); },
+    previewAsset: function (id, ll, rot) { var a = byId(id); if (!a) return; if (ll) { a.lng = ll[0]; a.lat = ll[1]; } if (rot != null) { a.props = a.props || {}; a.props.rot = rot; } refresh(); }, saveProperty: saveProperty, deleteProperty: function (id) { var a = byId(id); return a ? delAsset(a) : Promise.resolve(); },
     onPlaces: function (f) { placeCbs.push(f); }, setReadOnly: setRO, readOnly: function () { return RO; },
     onChange: function (f) { hooks.push(f); },
     _sync: { all: function () { return ASSETS.slice(); }, layerOf: layerOf,

@@ -110,6 +110,8 @@ button{font:inherit;color:inherit;cursor:pointer;touch-action:manipulation}
 .xhair:after{content:"";position:absolute;left:24px;top:24px;width:12px;height:12px;border:2px solid #ffe066;border-radius:50%;box-shadow:0 0 0 1.5px rgba(0,0,0,.6)}
 .placebar{position:fixed;left:10px;right:10px;bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:7;border-radius:18px;padding:10px 12px;max-width:520px;margin:0 auto}
 .pbinfo{font-size:13px;color:var(--mut);margin-bottom:8px;text-align:center}
+.pbrot{display:flex;gap:6px;align-items:center;margin-bottom:8px}.pbrot button{flex:1;padding:10px 4px;border-radius:12px;border:1px solid var(--line);background:rgba(255,255,255,.07);font-weight:800;font-size:14px}
+.pbrot b{min-width:56px;text-align:center;font-size:15px}
 .pbbtns{display:flex;gap:6px}.pbbtns button{flex:1;white-space:nowrap;padding:11px 6px;border-radius:12px;border:1px solid var(--line);background:rgba(255,255,255,.07);font-weight:800;font-size:13.5px}
 .pbbtns .p{flex:1.3;background:linear-gradient(135deg,#34d399,#22d3ee);color:#03221a;border-color:transparent}
 .placing .dock,.placing .card,.placing .top .rcol{display:none!important}.moving button{border:0;border-radius:10px;padding:6px 12px;background:rgba(0,0,0,.18);font-weight:800}
@@ -176,6 +178,7 @@ button{font:inherit;color:inherit;cursor:pointer;touch-action:manipulation}
 <div class="moving" id="moving" hidden><span id="movT"></span><button id="movX">Cancel</button></div>
 <div class="xhair" id="xhair" hidden aria-hidden="true"><i></i><b></b></div>
 <div class="placebar glass" id="placebar" hidden><div class="pbinfo" id="pbInfo">Satellite photo &middot; drag the map to line up the +</div>
+  <div class="pbrot" id="pbRot" hidden><button id="pbRL">&#10226; 15&deg;</button><b id="pbDeg">0&deg;</b><button id="pbRR">15&deg; &#10227;</button></div>
   <div class="pbbtns"><button id="pbGps">&#128205; My GPS</button><button id="pbLook">Street map</button><button class="p" id="pbOk">Place here</button></div></div>
 
 <div class="card glass" id="card" hidden></div>
@@ -243,7 +246,8 @@ POOLS.forEach(function(q,k){
 });
 var BASE=PL.length;
 var GEO=LS.get("geo2",{}),OVR=LS.get("pins_ll2",{}),FAV=LS.get("fav5",{});
-PL.forEach(function(p){if(!KML[p.n]&&GEO[p.n]){p.ll=GEO[p.n];p.src=1}if(OVR[p.n]){p.ll=OVR[p.n];p.src=2}});
+var ROT=LS.get("pu-rot",{});
+PL.forEach(function(p){if(!KML[p.n]&&GEO[p.n]){p.ll=GEO[p.n];p.src=1}if(OVR[p.n]){p.ll=OVR[p.n];p.src=2}if(ROT[p.n]!=null)p.rot=ROT[p.n]});
 $("sub").textContent="Central Park \u00b7 "+PL.length+" places";
 
 /* ---------------- map ---------------- */
@@ -309,6 +313,8 @@ if(window.mapboxgl){
 if(map){
   map.on("style.load",addLayers);
   map.on("error",function(e){var m=String(e&&e.error&&(e.error.message||e.error.status)||"");
+    if(e&&e.sourceId&&/satellite|mapbox(?!-dem)/.test(e.sourceId+" "+m)&&look==="sat"){window.__satErr=(e.error&&(e.error.status||""))+" "+m.slice(0,80);
+      if(!window.__satWarned){window.__satWarned=1;toast("Satellite photos aren't loading ("+window.__satErr.trim()+"). Switch to Street map, or send Claude a screenshot.",7000)}}
     if(/401|403|token|Unauthorized|Forbidden/i.test(m)&&!$("note"))note("The map was blocked by Mapbox. The access key may not allow this app. Open Mapbox \u2192 Tokens and allow bombarules.github.io.")});
   map.once("load",function(){if(window.PU3D_WORLD&&models)PU3D_WORLD.attach(map);setTimeout(function(){if(!tour)map.flyTo(Object.assign({},HOME,{duration:3500,essential:true}))},300);geocodeAll()});
   ["pu-hit","pu-dot","pu-label","pu-glow"].forEach(function(id){
@@ -325,6 +331,7 @@ if(map){
   });
   map.on("dragstart",function(e){if(tour&&!tour.paused&&e.originalEvent)tourPause(true)});
   map.on("move",function(){if(moving===-2)pbInfo()});
+  map.on("moveend",function(){if(moving===-2)preview()});
   map.on("touchstart",function(e){if(tour&&!tour.paused&&e.originalEvent&&e.originalEvent.touches&&e.originalEvent.touches.length>1)tourPause(true)});
   if(window.ResizeObserver)new ResizeObserver(function(){map.resize()}).observe($("map"));
 }
@@ -350,7 +357,7 @@ function showCard(i){var p=PL[i],c=catOf(p),q=p.addr||(p.n+", Central Park, Denv
   el.innerHTML='<button class="x" id="cX" aria-label="Close">&#10005;</button><h2></h2><span class="cat"><span class="dot" style="--c:'+c[1]+'"></span><span id="cC"></span></span>'+
    '<p class="addr" id="cA"></p><div class="am" id="cAm"></div><div class="btns">'+
    '<a class="p" target="_blank" rel="noopener" id="cDir">Directions</a><a target="_blank" rel="noopener" id="cMca">MCA page</a>'+
-   '<button class="ic fv" id="cFv" aria-label="Save place"></button><button class="ic" id="cSn" aria-label="Snow removal">&#10052;</button><button class="ic" id="cMv" aria-label="Move this pin">&#128205;</button><button class="ic" id="cEd" aria-label="Edit this property" hidden>&#9998;</button></div><div class="lytabs" id="cTabs"></div><p class="src" id="cSrc" hidden></p>';
+   '<button class="ic fv" id="cFv" aria-label="Save place"></button><button class="ic" id="cSn" aria-label="Snow removal">&#10052;</button><button class="ic" id="cMv" aria-label="Move or turn this park">&#128205;</button><button class="ic" id="cEd" aria-label="Edit this property" hidden>&#9998;</button></div><div class="lytabs" id="cTabs"></div><p class="src" id="cSrc" hidden></p>';
   el.querySelector("h2").textContent=p.n;
   $("cC").textContent=c[0]+(EST[p.n]?" \u00b7 Est. "+EST[p.n]:"");
   $("cA").textContent=(p.addr||"").replace(/^R42G\+JG, /,"Plus code R42G+JG, ");
@@ -376,19 +383,28 @@ function closeCard(){$("card").hidden=true;setSel(-1)}
 /* move a pin: tap the map where the place really is */
 var moving=-1,moveCb=null;
 var prevLook=null;
-function moveMode(msg,cb,o){o=o||{};closeCard();if(tour)tourStop();moveCb=cb;moving=-2;$("movT").textContent=msg;$("moving").hidden=false;
+var moveOpt=null,moveDeg=null,pvT=0;
+function moveMode(msg,cb,o){o=o||{};closeCard();if(tour)tourStop();moveCb=cb;moving=-2;moveOpt=o;moveDeg=o.rot!=null?((Math.round(o.rot)%360)+360)%360:null;
+  $("pbRot").hidden=moveDeg==null;if(moveDeg!=null)$("pbDeg").textContent=moveDeg+"\u00b0";$("movT").textContent=msg;$("moving").hidden=false;
   $("xhair").hidden=false;$("placebar").hidden=false;document.body.classList.add("placing");
   if(look!=="sat"){prevLook=look;look="sat";sat=true;if(map)map.setStyle(SAT)}$("pbLook").textContent="Street map";
   var c=o.center||(map?[map.getCenter().lng,map.getCenter().lat]:HOME.center);
   if(map)map.flyTo({center:c,zoom:o.zoom||19.6,pitch:0,bearing:0,duration:1200,essential:true});
   pbInfo()}
 function pbInfo(){if(!map)return;var c=map.getCenter();$("pbInfo").textContent=(look==="sat"?"Satellite photo":"Street map")+" \u00b7 + is at "+c.lat.toFixed(6)+", "+c.lng.toFixed(6)}
-function finishPlace(ll){var cb=moveCb;endMove();if(cb&&ll)cb(ll)}
-function startMove(i){var p=PL[i];moveMode("Line up the + with "+p.n,function(ll){if(p.custom){PUAssets.saveProperty({id:p.custom,ll:ll,geo:"exact"}).then(function(){toast(p.n+" moved.");var j=PL.map(function(x){return x.custom}).indexOf(p.custom);if(j>=0)pick(j,{from:"map"})});return}
-  p.ll=ll;p.src=2;OVR[p.n]=p.ll;LS.set("pins_ll2",OVR);refresh();toast(p.n+" moved. Saved on this phone.");pick(i,{from:"map"})},{center:p.ll,zoom:18.2})}
+function finishPlace(ll){var cb=moveCb,d=moveDeg;moveOpt=null;endMove();if(cb&&ll)cb(ll,d)}
+function preview(){if(!moveOpt||!moveOpt.preview||!map)return;clearTimeout(pvT);pvT=setTimeout(function(){if(!moveOpt)return;var c=map.getCenter();moveOpt.preview([c.lng,c.lat],moveDeg)},120)}
+function turn(d){if(moveDeg==null)return;moveDeg=((moveDeg+d)%360+360)%360;$("pbDeg").textContent=moveDeg+"\u00b0";preview()}
+function startMove(i){var p=PL[i],orig={ll:p.ll.slice(),rot:p.rot},start=p.rot!=null?p.rot:(window.PU3D&&PU3D.defaultRot?PU3D.defaultRot(p.n):0);
+  moveMode("Line up the + and turn "+p.n+" to match",function(ll,deg){p.ll=ll;p.rot=deg;p.src=2;
+    if(p.custom){PUAssets.saveProperty({id:p.custom,ll:ll,rot:deg,geo:"exact"}).then(function(){toast(p.n+" moved.");var j=PL.map(function(x){return x.custom}).indexOf(p.custom);if(j>=0)pick(j,{from:"map"})});return}
+    OVR[p.n]=p.ll;LS.set("pins_ll2",OVR);var R=LS.get("pu-rot",{});R[p.n]=deg;LS.set("pu-rot",R);
+    if(window.PUAssets&&PUAssets.saveFix)PUAssets.saveFix(p.n,ll,deg).catch(function(){});refresh();toast(p.n+" moved and turned.");pick(i,{from:"map"})},
+    {center:p.ll,zoom:18.4,rot:start,preview:function(ll,deg){p.ll=ll;p.rot=deg;if(window.PU3D)PU3D.rebuild()},cancel:function(){p.ll=orig.ll;p.rot=orig.rot;if(window.PU3D)PU3D.rebuild()}})}
 function endMove(){moving=-1;moveCb=null;$("moving").hidden=true;$("xhair").hidden=true;$("placebar").hidden=true;document.body.classList.remove("placing");if(window.PUAssets&&PUAssets.focus()&&map)map.easeTo({pitch:0,duration:600});
   if(prevLook){look=prevLook;prevLook=null;sat=look==="sat";if(map)map.setStyle(styleFor())}}
-$("movX").onclick=function(){endMove()};
+$("movX").onclick=function(){if(moveOpt&&moveOpt.cancel)moveOpt.cancel();moveOpt=null;endMove()};
+$("pbRL").onclick=function(){turn(-15)};$("pbRR").onclick=function(){turn(15)};
 $("pbOk").onclick=function(){if(!map)return;var c=map.getCenter();finishPlace([+c.lng.toFixed(7),+c.lat.toFixed(7)])};
 $("pbLook").onclick=function(){if(!map)return;var cam={center:map.getCenter(),zoom:map.getZoom()};if(look==="sat"){look=prevLook||"map";this.textContent="Satellite photo"}else{look="sat";this.textContent="Street map"}sat=look==="sat";map.setStyle(styleFor());map.jumpTo(cam);pbInfo()};
 $("pbGps").onclick=function(){var m=window.PUAssets&&PUAssets.me();if(!m){window.PUAssets&&PUAssets.startGPS();toast("Finding your GPS\u2026 tap again in a moment.");return}
@@ -459,7 +475,7 @@ $("tSpd").onclick=function(){spd=(spd+1)%SPEEDS.length;this.innerHTML=["1&times;
 
 /* ---------------- top controls & menu ---------------- */
 $("bView").onclick=function(){if(tour)tourStop();closeCard();map&&map.flyTo(Object.assign({},HOME,{duration:2200,essential:true}))};
-function menuText(){if(window.PUSync)$("mSyncT").textContent=PUSync.status();$("m3dStat").textContent="3D models: "+(window.PU3D?PU3D.status():"not loaded")+" \u00b7 v"+(window.PoolBridge&&PoolBridge.version?PoolBridge.version():"2.0");$("mSatT").textContent="Map look: "+{map:"Bubble 3D",real:"Realistic 3D",sat:"Satellite"}[look];$("mLightT").textContent="Light: "+{auto:"Auto",day:"Day",dusk:"Dusk",night:"Night",dawn:"Dawn"}[light];$("m3dT").textContent=models?"Hide 3D models":"Show 3D models";$("mLight").hidden=look!=="real"}
+function menuText(){if(window.__satErr)$("m3dStat").dataset.sat=" \u00b7 satellite: "+window.__satErr;if(window.PUSync)$("mSyncT").textContent=PUSync.status();$("m3dStat").textContent="3D models: "+(window.PU3D?PU3D.status():"not loaded")+($("m3dStat").dataset.sat||"")+" \u00b7 v"+(window.PoolBridge&&PoolBridge.version?PoolBridge.version():"2.0");$("mSatT").textContent="Map look: "+{map:"Bubble 3D",real:"Realistic 3D",sat:"Satellite"}[look];$("mLightT").textContent="Light: "+{auto:"Auto",day:"Day",dusk:"Dusk",night:"Night",dawn:"Dawn"}[light];$("m3dT").textContent=models?"Hide 3D models":"Show 3D models";$("mLight").hidden=look!=="real"}
 $("bMenu").onclick=function(){var m=$("menu"),o=m.hidden;closeAll();m.hidden=!o;this.setAttribute("aria-expanded",o);menuText()};
 function closeMenu(){$("menu").hidden=true;$("bMenu").setAttribute("aria-expanded",false)}
 $("mSat").onclick=function(){var o=["map","real","sat"];look=o[(o.indexOf(look)+1)%3];sat=look==="sat";LS.set("pu-look3",look);menuText();if(map)map.setStyle(styleFor())};
@@ -514,8 +530,9 @@ window.bombaHome=function(){closeAll();endMove();if(tour)tourStop();closeCard();
 document.addEventListener("keydown",function(e){if(e.key==="Escape"){if(tour)tourStop();else closeAll()}});
 setInterval(function(){if(map&&look==="real"&&light==="auto"&&map.isStyleLoaded())try{map.setConfigProperty("basemap","lightPreset",preset());window.PU3D&&PU3D.setLight(preset())}catch(e){}},300000);
 function mergePlaces(){if(!window.PUAssets)return;var selId=sel>=BASE&&PL[sel]?PL[sel].custom:null;PL.length=BASE;
+  if(PUAssets.fixes)PUAssets.fixes().forEach(function(f){for(var k=0;k<BASE;k++)if(PL[k].n===f.label){if(f.lng!=null){PL[k].ll=[f.lng,f.lat];PL[k].src=2}if(f.props&&f.props.rot!=null)PL[k].rot=+f.props.rot;break}});
   PUAssets.places().filter(function(a){return a.lng!=null}).sort(function(a,b){return (a.created||0)-(b.created||0)}).forEach(function(a){var pr=a.props||{},c=CAT[pr.cat]?pr.cat:"other";
-    PL.push({n:a.label||"New property",cat:c,am:pr.am||"",addr:pr.addr||"",mca:pr.mca||"",ll:[a.lng,a.lat],src:2,pool:c==="pool",custom:a.id,geo:pr.geo||""})});
+    PL.push({n:a.label||"New property",cat:c,am:pr.am||"",addr:pr.addr||"",mca:pr.mca||"",ll:[a.lng,a.lat],src:2,pool:c==="pool",custom:a.id,geo:pr.geo||"",rot:pr.rot!=null&&pr.rot!==""?+pr.rot:undefined})});
   $("sub").textContent="Central Park \u00b7 "+PL.length+" places";refresh();if(!$("sheet").hidden)drawList();
   if(selId){var j=PL.map(function(x){return x.custom}).indexOf(selId);if(j<0)closeCard();else{sel=j;if(!$("card").hidden)showCard(j)}}else if(sel>=PL.length)closeCard()}
 function uniqueName(n,except){n=String(n||"").trim();return !PL.some(function(p){return p.n.toLowerCase()===n.toLowerCase()&&p.custom!==except})}

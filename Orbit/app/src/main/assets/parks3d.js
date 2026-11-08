@@ -84,7 +84,7 @@
   /* ---------- one model per park, built from its real amenity list ---------- */
   function has(p, re) { return re.test(p.am || ""); }
   function model(p, x, z) {
-    var r = rng(p.n), rad = radius(p), cat = p.cat, rot = r() * Math.PI * 2;
+    var r = rng(p.n), rad = radius(p), cat = p.cat, rot0 = r() * Math.PI * 2, rot = p.rot != null && !isNaN(p.rot) ? p.rot * Math.PI / 180 : rot0;
     var cs = Math.cos(rot), sn = Math.sin(rot);
     function at(dx, dz) { return [x + dx * cs - dz * sn, z + dx * sn + dz * cs]; }
     function P(g, col, dx, y, dz, sx, sy, sz, ry) { var a = at(dx, dz); put(g, col, a[0], y, a[1], sx, sy, sz, (ry || 0) - rot); }
@@ -217,7 +217,7 @@
   S.assets = [];
   var ASSET3D = {}; ["bench", "trash", "dog", "grill", "bathroom", "firepit", "fountain", "light", "mailbox", "newspaper", "table", "playground", "field", "sign", "structure", "flowerpot", "other", "tree", "stump", "site"].forEach(function (k) { ASSET3D[k] = 1; });
   function assetModel(a, x, z) {
-    var r = rng(a.id || (a.type + x)), rot = r() * Math.PI * 2, cs = Math.cos(rot), sn = Math.sin(rot);
+    var r = rng(a.id || (a.type + x)), rot0 = r() * Math.PI * 2, pr = a.props || {}, rot = pr.rot != null && pr.rot !== "" && !isNaN(pr.rot) ? +pr.rot * Math.PI / 180 : rot0, cs = Math.cos(rot), sn = Math.sin(rot);
     function P(g, col, dx, y, dz, sx, sy, sz) { put(g, col, x + dx * cs - dz * sn, y, z + dx * sn + dz * cs, sx, sy, sz, -rot); }
     function G(g, col, dx, y, dz, sx, sy, sz) { put("glow:" + g, col, x + dx * cs - dz * sn, y, z + dx * sn + dz * cs, sx, sy, sz, -rot); }
     switch (a.type) {
@@ -362,6 +362,8 @@
     setAnimate: function (on) { S.animAll = !!on; if (S.map) S.map.triggerRepaint(); },
     setLight: function (p) { S.light = p; applyLight(); if (S.map) S.map.triggerRepaint(); },
     rebuild: function () { if (S.ok) { build(); S.map.triggerRepaint(); } },
+    defaultRot: function (name) { return Math.round(rng(name)() * 360) % 360; },
+    defaultAssetRot: function (id) { return Math.round(rng(id)() * 360) % 360; },
     setVisible: function (on) { S.hidden = !on; if (S.map) S.map.triggerRepaint(); },
     setDecor: function (on) { var off = !on; if (S.decorOff === off) return; S.decorOff = off; if (S.ok) { build(); S.map.triggerRepaint(); } if (window.PU3D_WORLD) PU3D_WORLD.setOn(on && !!(window.PU && PU.look && PU.look() !== "real")); },
     setNoTreeZones: function (polys) { var key = JSON.stringify(polys); if (key === S.zoneKey) return; S.zoneKey = key; S.zonesLL = polys || []; S.zonesLocal = null;
