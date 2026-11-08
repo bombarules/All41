@@ -1,4 +1,4 @@
-name: All41 - unpack and build Orbit
+name: All41 - unpack and build Park Universe
 
 on:
   push:
@@ -44,12 +44,12 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Build Orbit APK
+      - name: Build Park Universe APK
         working-directory: Orbit
         run: chmod +x gradlew && ./gradlew assembleDebug
 
-      - name: Upload Orbit APK
+      - name: Upload Park Universe APK
         uses: actions/upload-artifact@v4
         with:
-          name: Orbit-apk
+          name: ParkUniverse-apk
           path: Orbit/app/build/outputs/apk/debug/app-debug.apk
