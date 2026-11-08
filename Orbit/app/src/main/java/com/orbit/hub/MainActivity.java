@@ -62,6 +62,8 @@ public class MainActivity extends Activity {
     private ValueCallback<Uri[]> fileCallback;
     private Uri cameraUri;
     private String pendingText;
+    private byte[] pendingBytes;
+    private String pendingMime = "text/csv";
     private String pendingCode;
     private String pendingName;
 
@@ -115,15 +117,16 @@ public class MainActivity extends Activity {
             return;
         }
         if (requestCode == REQ_SAVE) {
-            if (resultCode == RESULT_OK && data != null && data.getData() != null && pendingText != null) {
+            if (resultCode == RESULT_OK && data != null && data.getData() != null && (pendingText != null || pendingBytes != null)) {
                 try (OutputStream os = getContentResolver().openOutputStream(data.getData())) {
-                    if (os != null) os.write(pendingText.getBytes(StandardCharsets.UTF_8));
+                    if (os != null) os.write(pendingBytes != null ? pendingBytes : pendingText.getBytes(StandardCharsets.UTF_8));
                     Toast.makeText(this, "Saved", Toast.LENGTH_SHORT).show();
                 } catch (Exception e) {
                     Toast.makeText(this, "Couldn't save the file", Toast.LENGTH_LONG).show();
                 }
             }
             pendingText = null;
+            pendingBytes = null;
             return;
         }
         if (requestCode != REQ_PROJECTION) return;
@@ -358,15 +361,40 @@ public class MainActivity extends Activity {
         }
     }
 
-    /** VoluntTold: save a CSV through Android's "save as" screen. */
+    /** VoluntTold + Park Universe: save files through Android's "save as" screen. */
     public class AppBridge {
         @JavascriptInterface
-        public void saveText(final String name, final String text) {
-            pendingText = text;
+        public void saveBase64(final String name, final String mime, final String b64) {
+            try {
+                pendingBytes = Base64.decode(b64, Base64.DEFAULT);
+            } catch (Exception e) {
+                runOnUiThread(() -> Toast.makeText(MainActivity.this, "Couldn't save the file", Toast.LENGTH_LONG).show());
+                return;
+            }
+            pendingText = null;
             runOnUiThread(() -> {
                 Intent i = new Intent(Intent.ACTION_CREATE_DOCUMENT);
                 i.addCategory(Intent.CATEGORY_OPENABLE);
-                i.setType("text/csv");
+                i.setType(mime == null || mime.isEmpty() ? "application/octet-stream" : mime);
+                i.putExtra(Intent.EXTRA_TITLE, name);
+                try {
+                    startActivityForResult(i, REQ_SAVE);
+                } catch (Exception e) {
+                    Toast.makeText(MainActivity.this, "Couldn't save the file", Toast.LENGTH_LONG).show();
+                }
+            });
+        }
+
+        @JavascriptInterface
+        public void saveText(final String name, final String text) {
+            pendingText = text;
+            pendingBytes = null;
+            String n = name == null ? "" : name.toLowerCase();
+            final String type = n.endsWith(".geojson") || n.endsWith(".json") ? "application/json" : "text/csv";
+            runOnUiThread(() -> {
+                Intent i = new Intent(Intent.ACTION_CREATE_DOCUMENT);
+                i.addCategory(Intent.CATEGORY_OPENABLE);
+                i.setType(type);
                 i.putExtra(Intent.EXTRA_TITLE, name);
                 try {
                     startActivityForResult(i, REQ_SAVE);

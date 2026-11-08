@@ -40,6 +40,9 @@ button{font:inherit;color:inherit;cursor:pointer;touch-action:manipulation}
 .btns .p{background:linear-gradient(135deg,#34d399,#22d3ee);color:#03221a;border-color:transparent}
 .btns .ic{flex:0 0 42px}
 .btns .fv[aria-pressed=true]{color:var(--acc2);border-color:var(--acc2)}
+.lytabs{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:8px}
+.lytabs button{display:flex;align-items:center;justify-content:center;gap:5px;padding:9px 4px;border-radius:12px;border:1px solid var(--line);background:rgba(255,255,255,.06);font-weight:700;font-size:12.5px;white-space:nowrap;overflow:hidden}
+.lytabs i{font-style:normal}.placing .ly-bar{display:none!important}
 .src{font-size:11.5px;color:var(--mut);margin:8px 0 0}
 /* sheet: places list */
 .sheet{position:fixed;left:0;right:0;bottom:0;height:68vh;border-radius:22px 22px 0 0;z-index:8;display:flex;flex-direction:column;padding-bottom:env(safe-area-inset-bottom,0px);max-width:640px;margin:0 auto}
@@ -66,7 +69,7 @@ button{font:inherit;color:inherit;cursor:pointer;touch-action:manipulation}
 .tour .tt b{display:block;font-size:18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tour .tt span{display:block;color:var(--mut);font-size:12.5px}
 .tc{display:flex;gap:4px}
-.tc button{width:38px;height:38px;border-radius:12px;border:1px solid var(--line);background:rgba(255,255,255,.06);font-size:15px}
+.tc button{width:38px;height:38px;padding:0;white-space:nowrap;font-size:14px;border-radius:12px;border:1px solid var(--line);background:rgba(255,255,255,.06);font-size:15px}
 .tc .pl{background:var(--acc2);color:#2a1d00;border-color:transparent}
 .bar{position:absolute;left:12px;right:12px;bottom:5px;height:3px;border-radius:3px;background:rgba(255,255,255,.12);overflow:hidden}
 .bar i{display:block;height:100%;background:var(--acc2);width:0;transition:width .4s}
@@ -92,6 +95,7 @@ button{font:inherit;color:inherit;cursor:pointer;touch-action:manipulation}
 .menu button:active{background:rgba(255,255,255,.08)}
 .menu i{font-style:normal;width:22px;text-align:center}
 .menu hr{border:0;border-top:1px solid var(--line);margin:4px 6px}
+.mstat{font-size:12px;color:var(--mut);padding:6px 12px 8px;max-width:260px}
 /* misc */
 .toast{position:fixed;left:50%;top:calc(66px + env(safe-area-inset-top,0px));transform:translateX(-50%);background:#0b1520;border:1px solid var(--line);color:#fff;padding:10px 16px;border-radius:99px;font-size:13.5px;z-index:20;max-width:92%;text-align:center;box-shadow:0 6px 20px rgba(0,0,0,.5)}
 .note{position:fixed;left:12px;right:12px;top:calc(70px + env(safe-area-inset-top,0px));z-index:6;padding:12px 14px;border-radius:14px;font-size:14px;max-width:520px;margin:0 auto}
@@ -146,8 +150,11 @@ button{font:inherit;color:inherit;cursor:pointer;touch-action:manipulation}
   <button id="mLight" role="menuitem"><i>&#127769;</i><span id="mLightT">Light: Auto</span></button>
   <button id="m3d" role="menuitem"><i>&#127795;</i><span id="m3dT">Hide 3D models</span></button>
   <hr>
+  <button id="mLayers" role="menuitem"><i>&#128477;</i>Map layers&hellip;</button>
+  <button id="mDl" role="menuitem"><i>&#11015;</i>Download map&hellip;</button>
   <button id="mCopy" role="menuitem"><i>&#128203;</i>Copy pin positions</button>
   <button id="mHome" role="menuitem"><i>&#127968;</i>Home screen settings</button>
+  <hr><div class="mstat" id="m3dStat"></div>
 </div>
 
 <div class="tour glass" id="tour" hidden aria-live="polite">
@@ -273,22 +280,23 @@ function addLayers(){
   /* tap target the size of each 3D model (radius in metres) */
   map.addLayer(Object.assign({id:"pu-hit",type:"circle",source:"pu",paint:{"circle-radius":["interpolate",["exponential",2],["zoom"],10,["/",["get","r"],58.74],22,["/",["get","r"],0.01434]],
     "circle-color":"#ffffff","circle-opacity":0.001,"circle-pitch-alignment":"map","circle-pitch-scale":"map"}},slot));
-  if(models&&window.THREE&&window.PU3D){try{map.addLayer(PU3D.layer(PL,{slot:std?"top":undefined,color:function(p){return catOf(p)[1]},onError:function(){toast("3D models aren't supported on this device — showing the map only.")}}));PU3D.setLight(look==="real"?preset():"day");PU3D.setSel(sel)}catch(e){}}
+  if(models&&window.THREE&&window.PU3D){try{map.addLayer(PU3D.layer(PL,{slot:std?"top":undefined,color:function(p){return catOf(p)[1]},onError:function(e){toast("3D models couldn't start: "+String(e&&e.message||e).slice(0,90),8000)}}));PU3D.setLight(look==="real"?preset():"day");PU3D.setSel(sel)}catch(e){}}
   map.addLayer(Object.assign({id:"pu-sel",type:"circle",source:"pu",filter:["==",["get","i"],sel],paint:{"circle-radius":["interpolate",["linear"],["zoom"],11,11,16,22],
     "circle-color":"rgba(0,0,0,0)","circle-stroke-color":"#ffffff","circle-stroke-width":3,"circle-emissive-strength":1}},slot));
   map.addLayer(Object.assign({id:"pu-label",type:"symbol",source:"pu",layout:{"text-field":["get","name"],"text-size":["interpolate",["linear"],["zoom"],11,["case",["==",["get","pool"],1],12,10],16,["case",["==",["get","pool"],1],16,14]],
     "text-anchor":"top","text-offset":[0,.9],"text-max-width":9,"symbol-sort-key":["get","rank"],"text-padding":3,"text-letter-spacing":.02},
     paint:look==="map"?{"text-color":["case",["==",["get","pool"],1],"#075985","#0b2238"],"text-halo-color":"#ffffff","text-halo-width":1.8}:{"text-color":["case",["==",["get","pool"],1],"#cffafe","#ffffff"],"text-halo-color":"rgba(4,12,22,.92)","text-halo-width":1.6,"text-emissive-strength":1}},slot));
   if(window.PUAssets){try{PUAssets.addLayers()}catch(e){}}
+  if(!namesOn)setTimeout(function(){setNames(false)},0);
   map.addLayer(Object.assign({id:"pu-sel-label",type:"symbol",source:"pu",filter:["==",["get","i"],sel],layout:{"text-field":["get","name"],"text-size":17,"text-anchor":"top","text-offset":[0,1.2],"text-allow-overlap":true,"text-ignore-placement":true,"text-max-width":11},
     paint:look==="map"?{"text-color":"#0b2238","text-halo-color":"#fff3c4","text-halo-width":2.4}:{"text-color":"#fff8e1","text-halo-color":"rgba(4,12,22,.95)","text-halo-width":2,"text-emissive-strength":1}},slot));
 }
-function setSel(i){sel=i;window.PU3D&&PU3D.setSel(i);if(map&&map.getLayer("pu-sel")){map.setFilter("pu-sel",["==",["get","i"],i]);map.setFilter("pu-sel-label",["==",["get","i"],i])}}
+function setSel(i){sel=i;window.PU3D&&PU3D.setSel(i);if(map&&map.getLayer("pu-sel")){map.setFilter("pu-sel",["==",["get","i"],i]);map.setFilter("pu-sel-label",["==",["get","i"],i]);map.setFilter("pu-label",["!=",["get","i"],i])}}
 
 if(window.mapboxgl){
   mapboxgl.accessToken=TOKEN;
   try{
-    map=new mapboxgl.Map({container:"map",style:styleFor(),center:HOME.center,zoom:11.2,pitch:0,bearing:0,antialias:true,attributionControl:true,
+    map=new mapboxgl.Map({container:"map",style:styleFor(),preserveDrawingBuffer:true,center:HOME.center,zoom:11.2,pitch:0,bearing:0,antialias:true,attributionControl:true,
       config:{basemap:{lightPreset:preset(),showPointOfInterestLabels:true}}});
   }catch(e){note("3D maps need WebGL, which this device or browser doesn't support.")}
 }else note("The map couldn't load. Check your internet connection, then reopen Park Universe.");
@@ -299,7 +307,7 @@ if(map){
     if(/401|403|token|Unauthorized|Forbidden/i.test(m)&&!$("note"))note("The map was blocked by Mapbox. The access key may not allow this app. Open Mapbox \u2192 Tokens and allow bombarules.github.io.")});
   map.once("load",function(){if(window.PU3D_WORLD&&models)PU3D_WORLD.attach(map);setTimeout(function(){if(!tour)map.flyTo(Object.assign({},HOME,{duration:3500,essential:true}))},300);geocodeAll()});
   ["pu-hit","pu-dot","pu-label","pu-glow"].forEach(function(id){
-    map.on("click",id,function(e){if(moving!==-1)return;if(map.getLayer("as-icons")&&map.queryRenderedFeatures(e.point,{layers:["as-icons"]}).length)return;var f=e.features&&e.features[0];if(f){e.originalEvent&&(e.originalEvent.cancelBubble=true);pick(f.properties.i,{from:"map"})}});
+    map.on("click",id,function(e){if(moving!==-1)return;if(window.PUAssets&&PUAssets.focus())return;var gl=["as-icons","as-line","as-fill"].filter(function(l){return map.getLayer(l)});if(gl.length&&map.queryRenderedFeatures(e.point,{layers:gl}).length)return;var f=e.features&&e.features[0];if(f){e.originalEvent&&(e.originalEvent.cancelBubble=true);pick(f.properties.i,{from:"map"})}});
     map.on("mouseenter",id,function(){map.getCanvas().style.cursor="pointer"});
     map.on("mouseleave",id,function(){map.getCanvas().style.cursor=""});
   });
@@ -337,7 +345,7 @@ function showCard(i){var p=PL[i],c=catOf(p),q=p.addr||(p.n+", Central Park, Denv
   el.innerHTML='<button class="x" id="cX" aria-label="Close">&#10005;</button><h2></h2><span class="cat"><span class="dot" style="--c:'+c[1]+'"></span><span id="cC"></span></span>'+
    '<p class="addr" id="cA"></p><div class="am" id="cAm"></div><div class="btns">'+
    '<a class="p" target="_blank" rel="noopener" id="cDir">Directions</a><a target="_blank" rel="noopener" id="cMca">MCA page</a>'+
-   '<button class="ic fv" id="cFv" aria-label="Save place"></button><button class="ic" id="cSn" aria-label="Snow removal">&#10052;</button><button class="ic" id="cMv" aria-label="Move this pin">&#128205;</button></div><div class="btns" style="margin-top:8px"><button id="cAs">Assets</button><button id="cAdd">\uff0b Add asset</button></div><p class="src" id="cSrc"></p>';
+   '<button class="ic fv" id="cFv" aria-label="Save place"></button><button class="ic" id="cSn" aria-label="Snow removal">&#10052;</button><button class="ic" id="cMv" aria-label="Move this pin">&#128205;</button></div><div class="lytabs" id="cTabs"></div><p class="src" id="cSrc"></p>';
   el.querySelector("h2").textContent=p.n;
   $("cC").textContent=c[0]+(EST[p.n]?" \u00b7 Est. "+EST[p.n]:"");
   $("cA").textContent=(p.addr||"").replace(/^R42G\+JG, /,"Plus code R42G+JG, ");
@@ -347,10 +355,11 @@ function showCard(i){var p=PL[i],c=catOf(p),q=p.addr||(p.n+", Central Park, Denv
   var fv=$("cFv");fv.textContent=FAV[p.n]?"\u2605":"\u2606";fv.setAttribute("aria-pressed",!!FAV[p.n]);
   fv.onclick=function(){if(FAV[p.n])delete FAV[p.n];else FAV[p.n]=1;LS.set("fav5",FAV);refresh();showCard(i);if(!$("sheet").hidden)drawList()};
   $("cSn").onclick=function(){openSnow(i)};
-  if(window.PUAssets){var by=PUAssets.counts(p.n),tot=Object.keys(by).reduce(function(t,k){return t+by[k]},0);$("cAs").textContent="Assets ("+tot+")";
-    $("cAs").onclick=function(){PUAssets.openList({park:p.n})};$("cAdd").onclick=function(){PUAssets.startAdd({park:p.n})};
-    if(tot){var sm=document.createElement("div");sm.className="am";Object.keys(by).forEach(function(k){var sp=document.createElement("span");sp.innerHTML='<img alt="" src="'+PUAssets.iconURL(k)+'" style="width:15px;height:15px;vertical-align:-3px"> '+by[k]+" "+PUAssets.T[k].name.toLowerCase();sm.appendChild(sp)});$("cSrc").parentNode.insertBefore(sm,$("cSrc"))}}
-  else{$("cAs").parentNode.hidden=true}$("cMv").onclick=function(){startMove(i)};$("cX").onclick=closeCard;
+  if(window.PUAssets){var tabs=$("cTabs");PUAssets.LAYERS.forEach(function(l){var b=document.createElement("button");b.id=l.id==="assets"?"cAs":"cTab_"+l.id;
+      b.innerHTML='<i>'+l.e+'</i><span></span>';b.querySelector("span").textContent=l.name+" ("+PUAssets.layerCount(p.n,l.id)+")";b.onclick=function(){PUAssets.openLayer(l.id,p.n)};tabs.appendChild(b)});
+    var dl=document.createElement("button");dl.id="cDl";dl.innerHTML='<i>\u2b07</i><span>Map</span>';dl.onclick=function(){PUAssets.openExport(p.n)};tabs.appendChild(dl);
+    var by=PUAssets.counts(p.n,"assets"),tot=Object.keys(by).length;
+    if(tot){var sm=document.createElement("div");sm.className="am";Object.keys(by).forEach(function(k){var sp=document.createElement("span");sp.innerHTML='<img alt="" src="'+PUAssets.iconURL(k)+'" style="width:15px;height:15px;vertical-align:-3px"> '+by[k]+" "+PUAssets.T[k].name.toLowerCase();sm.appendChild(sp)});$("cSrc").parentNode.insertBefore(sm,$("cSrc"))}}$("cMv").onclick=function(){startMove(i)};$("cX").onclick=closeCard;
   $("cSrc").textContent=p.src===2?"Pin: exact location":p.src===1?"Pin: from the street address":"Pin: approximate \u2014 tap \ud83d\udccd to place it exactly";
   el.hidden=false;
 }
@@ -368,7 +377,7 @@ function moveMode(msg,cb,o){o=o||{};closeCard();if(tour)tourStop();moveCb=cb;mov
 function pbInfo(){if(!map)return;var c=map.getCenter();$("pbInfo").textContent=(look==="sat"?"Satellite photo":"Street map")+" \u00b7 + is at "+c.lat.toFixed(6)+", "+c.lng.toFixed(6)}
 function finishPlace(ll){var cb=moveCb;endMove();if(cb&&ll)cb(ll)}
 function startMove(i){var p=PL[i];moveMode("Line up the + with "+p.n,function(ll){p.ll=ll;p.src=2;OVR[p.n]=p.ll;LS.set("pins_ll2",OVR);refresh();toast(p.n+" moved. Saved on this phone.");pick(i,{from:"map"})},{center:p.ll,zoom:18.2})}
-function endMove(){moving=-1;moveCb=null;$("moving").hidden=true;$("xhair").hidden=true;$("placebar").hidden=true;document.body.classList.remove("placing");
+function endMove(){moving=-1;moveCb=null;$("moving").hidden=true;$("xhair").hidden=true;$("placebar").hidden=true;document.body.classList.remove("placing");if(window.PUAssets&&PUAssets.focus()&&map)map.easeTo({pitch:0,duration:600});
   if(prevLook){look=prevLook;prevLook=null;sat=look==="sat";if(map)map.setStyle(styleFor())}}
 $("movX").onclick=function(){endMove()};
 $("pbOk").onclick=function(){if(!map)return;var c=map.getCenter();finishPlace([+c.lng.toFixed(7),+c.lat.toFixed(7)])};
@@ -398,7 +407,7 @@ function closeSheet(){$("sheet").hidden=true;$("scrim").hidden=true;$("dPlaces")
 $("q").oninput=drawList;$("sheetX").onclick=closeSheet;$("scrim").onclick=closeSheet;$("dPlaces").onclick=function(){$("sheet").hidden?openSheet():closeSheet()};
 
 /* ---------------- fly-over tour ---------------- */
-var tour=null,tid=0,SPEEDS=[1,1.6,.6],spd=0;
+var tour=null,tid=0,SPEEDS=[1,1.8,.55],spd=0;
 function route(list){ /* short path: always fly to the nearest place not yet visited */
   if(!list.length)return[];var left=list.slice(),start=0,cp=PL.map(function(p){return p.n}).indexOf("Central Park");
   if(map){var c=map.getCenter(),best=1e9;left.forEach(function(i,k){var d=dkm([c.lng,c.lat],PL[i].ll);if(d<best){best=d;start=k}})}
@@ -435,11 +444,11 @@ function tourStep(d){if(!tour)return;tour.k=(tour.k+d+tour.order.length)%tour.or
 function tourStop(){if(!tour)return;[].forEach.call(document.querySelectorAll(".toast"),function(o){o.remove()});var i=tour.order[tour.k];tour=null;window.PU3D&&PU3D.setAnimate(false);tid++;map&&map.stop();document.body.classList.remove("touring");$("tour").hidden=true;if(i!=null)showCard(i)}
 $("dFly").onclick=function(){tourStart(false)};$("flyList").onclick=function(){tourStart(true)};$("tPlay").onclick=function(){tour&&(tour.paused?tourResume():tourPause())};
 $("tPrev").onclick=function(){tourStep(-1)};$("tNext").onclick=function(){tourStep(1)};$("tStop").onclick=tourStop;
-$("tSpd").onclick=function(){spd=(spd+1)%SPEEDS.length;this.innerHTML=["1&times;","Fast","Slow"][spd];if(tour&&!tour.paused){tid++;map.stop();tourGo()}};
+$("tSpd").onclick=function(){spd=(spd+1)%SPEEDS.length;this.innerHTML=["1&times;","2&times;","&frac12;&times;"][spd];this.setAttribute("aria-label",["Normal speed","Fast","Slow"][spd]);if(tour&&!tour.paused){tid++;map.stop();tourGo()}};
 
 /* ---------------- top controls & menu ---------------- */
 $("bView").onclick=function(){if(tour)tourStop();closeCard();map&&map.flyTo(Object.assign({},HOME,{duration:2200,essential:true}))};
-function menuText(){$("mSatT").textContent="Map look: "+{map:"Bubble 3D",real:"Realistic 3D",sat:"Satellite"}[look];$("mLightT").textContent="Light: "+{auto:"Auto",day:"Day",dusk:"Dusk",night:"Night",dawn:"Dawn"}[light];$("m3dT").textContent=models?"Hide 3D models":"Show 3D models";$("mLight").hidden=look!=="real"}
+function menuText(){$("m3dStat").textContent="3D models: "+(window.PU3D?PU3D.status():"not loaded")+" \u00b7 v"+(window.BombaNative&&BombaNative.appVersion?BombaNative.appVersion():"1.7");$("mSatT").textContent="Map look: "+{map:"Bubble 3D",real:"Realistic 3D",sat:"Satellite"}[look];$("mLightT").textContent="Light: "+{auto:"Auto",day:"Day",dusk:"Dusk",night:"Night",dawn:"Dawn"}[light];$("m3dT").textContent=models?"Hide 3D models":"Show 3D models";$("mLight").hidden=look!=="real"}
 $("bMenu").onclick=function(){var m=$("menu"),o=m.hidden;closeAll();m.hidden=!o;this.setAttribute("aria-expanded",o);menuText()};
 function closeMenu(){$("menu").hidden=true;$("bMenu").setAttribute("aria-expanded",false)}
 $("mSat").onclick=function(){var o=["map","real","sat"];look=o[(o.indexOf(look)+1)%3];sat=look==="sat";LS.set("pu-look3",look);menuText();if(map)map.setStyle(styleFor())};
@@ -447,6 +456,8 @@ $("mLight").onclick=function(){if(look!=="real")return;var o=["auto","day","dusk
 $("m3d").onclick=function(){models=!models;LS.set("pu-models",models);closeMenu();if(map){if(models&&window.PU3D_WORLD)PU3D_WORLD.attach(map);map.setStyle(styleFor())}};
 $("mCopy").onclick=function(){closeMenu();var o={};PL.forEach(function(p){o[p.n]=[+(+p.ll[0]).toFixed(6),+(+p.ll[1]).toFixed(6)]});var j=JSON.stringify(o,null,1);
   try{navigator.clipboard.writeText(j).then(function(){toast("Pin positions copied. Paste them in a message to keep or share them.")},function(){window.prompt("Copy these pin positions",j)})}catch(e){window.prompt("Copy these pin positions",j)}};
+$("mLayers").onclick=function(){closeMenu();window.PUAssets&&PUAssets.openLayersPanel()};
+$("mDl").onclick=function(){closeMenu();window.PUAssets&&PUAssets.openExport(sel>=0?PL[sel].n:"")};
 $("mHome").onclick=function(){closeMenu();if(window.BombaNative&&BombaNative.homeSettings)BombaNative.homeSettings();else toast("Home screen settings are only in the Park Universe app.")};
 
 /* ---------------- apps drawer ---------------- */
@@ -491,7 +502,10 @@ window.bombaHome=function(){closeAll();endMove();if(tour)tourStop();closeCard();
 document.addEventListener("keydown",function(e){if(e.key==="Escape"){if(tour)tourStop();else closeAll()}});
 setInterval(function(){if(map&&look==="real"&&light==="auto"&&map.isStyleLoaded())try{map.setConfigProperty("basemap","lightPreset",preset());window.PU3D&&PU3D.setLight(preset())}catch(e){}},300000);
 window.__pu={PL:PL,pick:pick,tourStart:tourStart,tour:function(){return tour},route:route,shown:shown};
-window.PU={map:function(){return map},PL:PL,pick:pick,toast:toast,padFor:padFor,std:function(){return look==="real"},moveMode:moveMode,
+var namesOn=true;function setNames(on){namesOn=on;if(!map)return;["pu-label","pu-sel-label","pu-dot","pu-glow"].forEach(function(id){if(map.getLayer(id))map.setLayoutProperty(id,"visibility",on?"visible":"none")})}
+function setTempLook(l){if(look===l)return;if(!prevLook)prevLook=look;look=l;sat=look==="sat";if(map)map.setStyle(styleFor())}
+function restoreLook(){if(prevLook){look=prevLook;prevLook=null;sat=look==="sat";if(map)map.setStyle(styleFor())}}
+window.PU={map:function(){return map},look:function(){return look},setTempLook:setTempLook,restoreLook:restoreLook,setNames:setNames,PL:PL,pick:pick,toast:toast,padFor:padFor,std:function(){return look==="real"},moveMode:moveMode,
   closeAll:function(){closeMenu();closeSheet();closeApps();$("snow").hidden=true;closeCard();if(tour)tourStop()}};
 })();
 </script>

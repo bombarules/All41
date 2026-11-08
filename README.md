@@ -49,3 +49,23 @@ Actions tab → newest green run → download **ParkUniverse-apk** → unzip →
 All41 apps with 3D icons, then your phone apps: Live screens (bomba-live), Metro Governor,
 PoolCommand (ParkCommand), Pool Plant 3D (AquaticsTech), Aquatics Tech, VoluntTold, Field Reports.
 They live in `Orbit/app/src/main/assets/apps/` and all work offline.
+
+## Park layers (v1.8)
+Each park card has tabs: **Assets, Trees, Irrigation, Fields, Snow**, plus **⬇ Map**.
+A tab opens a top-down map of the park with that layer's tools along the bottom.
+- **Points** (heads, trees, backflow, gear…): tap the tool, then tap the map to drop as many as you need.
+  Tap the tool again to stop. Press and hold any point to drag it. Tap a point to edit it.
+- **Lines** (laterals, mainline, plow routes) and **outlines** (ball fields, batting cages, snow areas):
+  tap along the line or around the outline; a ruler shows feet / square feet / acres. Undo, ＋ Point at +, Satellite.
+- **Irrigation**: sprinkler heads (red, sized by type, with zone, nozzle and throw radius shown as a coverage circle),
+  backflow devices (turquoise, test dates), timer clocks (yellow), zone valves, quick couplers,
+  lateral lines (blue) and mainline (dark blue) with pipe size and material.
+- **Trees**: species, caliper, height, tag, planted date, replacement date, health (red ring = poor or dead),
+  dated photo history. Stumps and planting sites too. Real trees appear in 3D sized by caliper.
+- **Fields**: ball field and batting cage outlines (quick names: West, Burnett, East, Practice, Batting cages);
+  decorative 3D trees disappear inside them. Field gear: bases, portable cages, paint, chalk, drag screens,
+  spike drags, racks, tampers, paint machines.
+- **Snow**: plow routes, shovel walks, snow storage and do-not-plow areas.
+- **Menu ⋮ → Map layers**: switch each layer, the 3D models, decorative trees and park names on or off.
+- **⬇ Map / Menu → Download map**: pick a park and layers; save a map image (PNG, with legend, scale bar and
+  north arrow), the map data (GeoJSON for GIS) or a spreadsheet (CSV).

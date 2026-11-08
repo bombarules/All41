@@ -62,7 +62,10 @@
     Q = null;
   }
 
+  function zoneHit(x, z) { if (S.decorOff) return true; var zs = S.zonesLocal || []; for (var i = 0; i < zs.length; i++) { var q = zs[i];
+      if (x < q.x0 || x > q.x1 || z < q.z0 || z > q.z1) continue; var c = false, rg = q.r; for (var a = 0, b = rg.length - 1; a < rg.length; b = a++) { if ((rg[a][1] > z) !== (rg[b][1] > z) && x < (rg[b][0] - rg[a][0]) * (z - rg[a][1]) / (rg[b][1] - rg[a][1]) + rg[a][0]) c = !c; } if (c) return true; } return false; }
   function tree(r, x, z, s) {
+    if (zoneHit(x, z)) { r(); r(); r(); return; }
     if (VOXEL) { var th = Math.round(4 + r() * 3), cw = r() < .2 ? 7 : 5, leaf = ["#4f9a3a", "#5aa843", "#3f8a33", "#64b04a"][Math.floor(r() * 4)];
       put("box", "#7a5530", x, 1.2, z, 1.2, th, 1.2);
       put("box", leaf, x, 1.2 + th - 1, z, cw, 3, cw); put("box", leaf, x, 1.2 + th + 2, z, cw - 2, 2, cw - 2); return; }
@@ -212,11 +215,19 @@
 
   /* ---------- recorded assets: a small model at each GPS spot ---------- */
   S.assets = [];
+  var ASSET3D = {}; ["bench", "trash", "dog", "grill", "bathroom", "firepit", "fountain", "light", "mailbox", "newspaper", "table", "playground", "field", "sign", "structure", "flowerpot", "other", "tree", "stump", "site"].forEach(function (k) { ASSET3D[k] = 1; });
   function assetModel(a, x, z) {
     var r = rng(a.id || (a.type + x)), rot = r() * Math.PI * 2, cs = Math.cos(rot), sn = Math.sin(rot);
     function P(g, col, dx, y, dz, sx, sy, sz) { put(g, col, x + dx * cs - dz * sn, y, z + dx * sn + dz * cs, sx, sy, sz, -rot); }
     function G(g, col, dx, y, dz, sx, sy, sz) { put("glow:" + g, col, x + dx * cs - dz * sn, y, z + dx * sn + dz * cs, sx, sy, sz, -rot); }
     switch (a.type) {
+      case "tree": { var pr = a.props || {}, cal = Math.max(1, Math.min(40, +pr.caliper || 6)), ht = +pr.height > 0 ? +pr.height * .3048 : Math.min(22, 3.5 + cal * 1.05), cw = Math.min(16, 2.2 + cal * .55),
+          con = /pine|spruce|fir|juniper|cedar|conifer/i.test(pr.species || ""), dead = /Dead/i.test(a.cond || "");
+        P("cyl", dead ? "#7a6a5a" : "#7a5530", 0, 0, 0, .18 + cal * .03, ht * (con ? .3 : .5), .18 + cal * .03);
+        if (con) P("cone", dead ? "#9b8f7a" : "#2f7d45", 0, ht * .18, 0, cw * .85, ht * .85, cw * .85);
+        else P("canopy", dead ? "#a39478" : /Poor/i.test(a.cond || "") ? "#a8b84a" : "#4caf50", 0, ht * .38, 0, cw, cw * .85, cw); break; }
+      case "stump": P("cyl", "#7c5a3a", 0, 0, 0, 1, .45, 1); P("cyl", "#b08d64", 0, .45, 0, .85, .03, .85); break;
+      case "site": P("box", "#c9a36b", 0, 0, 0, .08, 1.2, .08); P("cyl", "#6b4f2e", 0, 0, 0, 1.4, .05, 1.4); break;
       case "bench": P("box", "#8a6440", 0, .45, 0, 1.8, .12, .5); P("box", "#8a6440", 0, .6, -.22, 1.8, .45, .08); P("box", "#333", -.7, 0, 0, .1, .45, .45); P("box", "#333", .7, 0, 0, .1, .45, .45); break;
       case "trash": P("cyl", "#2f5d3a", 0, 0, 0, .6, .95, .6); P("cyl", "#244a2e", 0, .95, 0, .66, .08, .66); break;
       case "dog": P("cyl", "#3b6e3f", 0, 0, 0, .1, 1.3, .1); P("box", "#4caf50", 0, 1.05, 0, .32, .45, .22); P("cyl", "#2f5d3a", .5, 0, 0, .45, .7, .45); break;
@@ -239,11 +250,13 @@
   }
   function buildAssets() {
     if (!S.scene) return; begin();
-    S.assets.forEach(function (a) { var l = local(a.ll); assetModel(a, l[0], l[1]); });
+    S.assets.forEach(function (a) { if (!ASSET3D[a.type]) return; var l = local(a.ll); assetModel(a, l[0], l[1]); });
     if (Object.keys(Q).length) flush(S.scene, "asInst"); else { Q = null; flush2clear(); }
   }
   function flush2clear() { var st = S.asInst || {}; Object.keys(st).forEach(function (k) { S.scene.remove(st[k]); st[k].dispose(); }); S.asInst = {}; }
 
+  function zoneLocal() { S.zonesLocal = (S.zonesLL || []).map(function (c) { var r = c.map(local), q = { r: r, x0: 1e9, x1: -1e9, z0: 1e9, z1: -1e9 };
+      r.forEach(function (p) { q.x0 = Math.min(q.x0, p[0]); q.x1 = Math.max(q.x1, p[0]); q.z0 = Math.min(q.z0, p[1]); q.z1 = Math.max(q.z1, p[1]); }); return q; }); }
   function local(ll) { var mc = mapboxgl.MercatorCoordinate.fromLngLat(ll, 0); return [(mc.x - S.origin.x) / S.s, (mc.y - S.origin.y) / S.s]; }
 
   function build() {
@@ -321,11 +334,12 @@
           S.ring = new T.Mesh(rg, new T.MeshBasicMaterial({ color: "#ffe066", transparent: true, opacity: .95, side: T.DoubleSide, depthWrite: false })); S.scene.add(S.ring);
           S.rend = new T.WebGLRenderer({ canvas: map.getCanvas(), context: gl, antialias: true });
           S.rend.autoClear = false; S.rend.toneMapping = T.ACESFilmicToneMapping; S.rend.toneMappingExposure = 1.25;
-          applyLight(); build(); S.ok = true;
-        } catch (e) { S.ok = false; if (S.opts.onError) S.opts.onError(e); }
+          applyLight(); zoneLocal(); build(); S.ok = true;
+        } catch (e) { S.ok = false; S.err = "start: " + (e && e.message || e); if (S.opts.onError) S.opts.onError(e); }
       },
       render: function (gl, matrix) {
-        if (!S.ok) return;
+        if (!S.ok || S.hidden) return;
+        try {
         var T = THREE, t = (performance.now() - S.t0) / 1000;
         var m = new T.Matrix4().fromArray(matrix);
         var l = new T.Matrix4().makeTranslation(S.origin.x, S.origin.y, S.origin.z)
@@ -335,6 +349,8 @@
         pose(t);
         S.rend.resetState(); S.rend.render(S.scene, S.cam);
         if (S.sel >= 0 || S.animAll) S.map.triggerRepaint();   /* animate only while something is picked or touring */
+        S.frames = (S.frames || 0) + 1;
+        } catch (e) { if (!S.err) { S.err = "draw: " + (e && e.message || e); if (S.opts.onError) S.opts.onError(e); } }
       },
       onRemove: function () { S.ok = false; S.scene = null; }
     };
@@ -346,8 +362,15 @@
     setAnimate: function (on) { S.animAll = !!on; if (S.map) S.map.triggerRepaint(); },
     setLight: function (p) { S.light = p; applyLight(); if (S.map) S.map.triggerRepaint(); },
     rebuild: function () { if (S.ok) { build(); S.map.triggerRepaint(); } },
+    setVisible: function (on) { S.hidden = !on; if (S.map) S.map.triggerRepaint(); },
+    setDecor: function (on) { var off = !on; if (S.decorOff === off) return; S.decorOff = off; if (S.ok) { build(); S.map.triggerRepaint(); } if (window.PU3D_WORLD) PU3D_WORLD.setOn(on && !!(window.PU && PU.look && PU.look() !== "real")); },
+    setNoTreeZones: function (polys) { var key = JSON.stringify(polys); if (key === S.zoneKey) return; S.zoneKey = key; S.zonesLL = polys || []; S.zonesLocal = null;
+      if (S.ok) { zoneLocal(); build(); S.map.triggerRepaint(); } if (window.PU3D_WORLD) PU3D_WORLD.reset(); },
+    zoneHit: function (x, z) { return zoneHit(x, z); },
     setAssets: function (list) { S.assets = list || []; if (S.ok) { buildAssets(); S.map.triggerRepaint(); } },
     ok: function () { return S.ok; },
+    status: function () { if (S.err) return "error (" + S.err.slice(0, 80) + ")"; if (!S.scene) return "waiting for the map"; if (!S.frames) return "added, not drawn yet";
+      var n = 0; Object.keys(S.inst || {}).forEach(function (k) { n += S.inst[k].count; }); return "working \u00b7 " + n + " pieces \u00b7 " + S.frames + " frames"; },
     _state: S
   };
 })();
@@ -389,7 +412,7 @@
     function nearModel(x, z) { for (var i = 0; i < keep.length; i++) { var k = keep[i]; if (Math.abs(x - k[0]) < k[2] && Math.abs(z - k[1]) < k[2]) return true; } return false; }
     var seen = {}, out = [];
     function add(x, z, gs) { if (out.length >= W.max || x < x0 || x > x1 || z < z0 || z > z1) return; var key = Math.round(x / gs) + "," + Math.round(z / gs);
-      if (seen[key] || blocked(x, z) || nearModel(x, z)) return; seen[key] = 1; out.push([x, z, hash(x * 7, z * 13)]); }
+      if (seen[key] || blocked(x, z) || nearModel(x, z) || PU3D.zoneHit(x, z)) return; seen[key] = 1; out.push([x, z, hash(x * 7, z * 13)]); }
     /* green areas */
     var DENS = { wood: .85, park: .38, grass: .2, scrub: .45, cemetery: .3, golf_course: .12 };
     q("landuse").forEach(function (f) { var d = DENS[f.properties && f.properties.class]; if (!d) return;
@@ -441,7 +464,7 @@
       var go = function () { clearTimeout(W.timer); W.timer = setTimeout(scan, 350); };
       map.on("idle", go); map.on("moveend", go); go(); },
     reset: function () { W.last = null; W.meshes = []; },
-    setOn: function (on) { W.on = on; if (!on) place([]); W.last = null; if (on) scan(); },
+    setOn: function (on) { if (PU3D._state.decorOff) on = false; W.on = on; if (!on) place([]); W.last = null; if (on) scan(); },
     count: function () { return W.meshes.length ? W.meshes[0].count : 0; },
     meshes: function () { return W.meshes; },
     meshes: function () { return W.meshes; },
