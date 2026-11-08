@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>PoolCommand</title>
+<style>
+@font-face{font-family:"Barlow Condensed";font-weight:500;font-style:normal;font-display:swap;src:url(fonts/barlow-condensed-latin-500-normal.woff2) format("woff2")}
+@font-face{font-family:"Barlow Condensed";font-weight:600;font-style:normal;font-display:swap;src:url(fonts/barlow-condensed-latin-600-normal.woff2) format("woff2")}
+@font-face{font-family:"Barlow Condensed";font-weight:700;font-style:normal;font-display:swap;src:url(fonts/barlow-condensed-latin-700-normal.woff2) format("woff2")}
+@font-face{font-family:"Barlow";font-weight:400;font-style:normal;font-display:swap;src:url(fonts/barlow-latin-400-normal.woff2) format("woff2")}
+@font-face{font-family:"Barlow";font-weight:500;font-style:normal;font-display:swap;src:url(fonts/barlow-latin-500-normal.woff2) format("woff2")}
+@font-face{font-family:"Barlow";font-weight:600;font-style:normal;font-display:swap;src:url(fonts/barlow-latin-600-normal.woff2) format("woff2")}
+:root{
+  color-scheme: light;
+  --board:#DDE3DA;        /* strip-board panel */
+  --board-edge:#C3CCC0;
+  --strip:#F6EBC8;        /* buff strip: pool open */
+  --strip-cold:#D6E5F2;   /* blue strip: pool not open */
+  --ink:#1B2631;
+  --ink-2:#4A5866;
+  --line:rgba(27,38,49,.16);
+  --go:#2A8A4C;
+  --hold:#C98502;
+  --stop:#C2362C;
+  --maint:#3F6FA0;
+  --surface:#FBFAF6;
+  --sheet:#FFFFFF;
+  --tab:#1E3A4C;
+  --tab-ink:#E9EFE6;
+  --fc:"Barlow Condensed","Roboto Condensed","Arial Narrow",sans-serif;
+  --fb:Barlow,Roboto,system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    color-scheme: dark;
+    --board:#151D23; --board-edge:#24303A;
+    --strip:#3A3526; --strip-cold:#22313F;
+    --ink:#EDEAE0; --ink-2:#A7B0B8; --line:rgba(237,234,224,.16);
+    --go:#4CC27A; --hold:#F0B43A; --stop:#F06A5E; --maint:#7FB0E0;
+    --surface:#1C252C; --sheet:#202A32; --tab:#0F171C; --tab-ink:#DCE4DA;
+  }
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%}
+body{background:var(--board);color:var(--ink);font:400 16px/1.45 var(--fb);
+  padding-top:env(safe-area-inset-top,0px)}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--maint);outline-offset:2px}
+.num{font-variant-numeric:tabular-nums}
+main{max-width:640px;margin:0 auto;padding:16px 14px calc(96px + env(safe-area-inset-bottom,0px))}
+
+/* ---------- header ---------- */
+.top{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin:4px 2px 14px}
+.brand{font:700 2.1rem/1 var(--fc);letter-spacing:.01em;margin:0}
+.clock{font:600 2.1rem/1 var(--fc);font-variant-numeric:tabular-nums}
+.summary{margin:0 2px 16px;color:var(--ink-2);font-size:1.02rem}
+.summary b{color:var(--ink);font-weight:600}
+
+/* ---------- weather hold ---------- */
+.holdbar{display:flex;align-items:center;justify-content:space-between;gap:10px;
+  border:2px dashed var(--board-edge);border-radius:14px;padding:12px 14px;margin-bottom:16px}
+.holdbar p{margin:0;flex:1;color:var(--ink-2);font-size:.95rem}
+.btn{white-space:nowrap;border:0;border-radius:12px;padding:12px 16px;font-weight:600;background:var(--tab);color:var(--tab-ink);min-height:48px}
+.btn.ghost{background:transparent;color:var(--ink);box-shadow:inset 0 0 0 2px var(--line)}
+.btn.warn{background:var(--hold);color:#1B1300}
+.btn.danger{background:var(--stop);color:#fff}
+.btn.small{min-height:40px;padding:8px 12px;font-size:.92rem}
+.hold-on{background:repeating-linear-gradient(-45deg,var(--hold) 0 14px,#1B1300 14px 28px);
+  border-radius:16px;padding:6px;margin-bottom:16px}
+.hold-in{background:var(--sheet);border-radius:11px;padding:16px}
+.hold-in .count{font:700 4.2rem/1 var(--fc);font-variant-numeric:tabular-nums;margin:2px 0 6px}
+.hold-in p{margin:0 0 12px;color:var(--ink-2)}
+.hold-in .row{display:flex;gap:10px;flex-wrap:wrap}
+.hold-done .count{color:var(--go)}
+
+/* ---------- strip board ---------- */
+.rack{background:var(--board-edge);border-radius:16px;padding:6px;display:grid;gap:6px}
+.strip{display:grid;grid-template-columns:10px minmax(0,1.8fr) minmax(0,.9fr) minmax(0,.9fr) minmax(0,1.05fr);
+  align-items:stretch;background:var(--strip);border:0;border-radius:6px;padding:0;text-align:left;
+  min-height:76px;width:100%;overflow:hidden;box-shadow:0 1px 0 rgba(0,0,0,.18)}
+.strip.cold{background:var(--strip-cold)}
+.edge{background:var(--go)}
+.s-closed .edge{background:var(--stop)}
+.s-maint .edge{background:var(--maint)}
+.s-hold .edge{background:repeating-linear-gradient(180deg,var(--hold) 0 8px,#1B1300 8px 16px)}
+.cell{padding:9px 10px;border-left:1px solid var(--line);display:flex;flex-direction:column;justify-content:center;min-width:0}
+.cell:nth-child(2){border-left:0}
+.call{font:700 1.5rem/1.02 var(--fc);letter-spacing:.01em;overflow-wrap:anywhere}
+.stat{font-size:.86rem;color:var(--ink-2);margin-top:2px}
+.k{font-size:.74rem;color:var(--ink-2)}
+.v{font:600 1.35rem/1.1 var(--fc);font-variant-numeric:tabular-nums}
+.v.bad{color:var(--stop)}
+.v.warn{color:var(--hold)}
+.v.none{color:var(--ink-2);font-weight:500}
+.due{color:var(--stop);font-weight:600}
+.legend{display:flex;gap:14px;flex-wrap:wrap;margin:12px 4px 0;color:var(--ink-2);font-size:.85rem}
+.legend i{display:inline-block;width:10px;height:14px;border-radius:2px;vertical-align:-2px;margin-right:5px}
+
+/* ---------- generic sections ---------- */
+h2{font:700 1.6rem/1.1 var(--fc);margin:6px 2px 12px}
+h3{font:600 1.15rem/1.2 var(--fc);margin:18px 0 8px;letter-spacing:.01em}
+.card{background:var(--surface);border-radius:14px;padding:14px;margin-bottom:12px}
+.muted{color:var(--ink-2)}
+.empty{color:var(--ink-2);padding:18px 4px}
+.chips{display:flex;gap:8px;overflow-x:auto;padding:2px 2px 10px;scrollbar-width:none}
+.chip{border:0;border-radius:999px;padding:8px 14px;background:var(--surface);white-space:nowrap;min-height:40px}
+.chip[aria-pressed="true"]{background:var(--tab);color:var(--tab-ink)}
+.feed{display:grid;gap:8px}
+.entry{background:var(--surface);border-radius:12px;padding:12px 14px;display:grid;grid-template-columns:auto 1fr;gap:4px 12px}
+.entry time{font:600 1.05rem/1.3 var(--fc);font-variant-numeric:tabular-nums;color:var(--ink-2)}
+.entry .what{font-weight:600}
+.entry .txt{grid-column:2;white-space:pre-wrap;word-break:break-word}
+.tag{display:inline-block;font-size:.78rem;border-radius:6px;padding:1px 7px;margin-left:6px;background:var(--board);color:var(--ink-2);font-weight:500}
+.tag.red{background:var(--stop);color:#fff}
+
+/* ---------- forms ---------- */
+label{display:block;font-size:.85rem;color:var(--ink-2);margin-bottom:4px}
+input,select,textarea{width:100%;border:2px solid var(--line);background:var(--sheet);border-radius:10px;padding:10px 12px;min-height:48px}
+textarea{min-height:84px;resize:vertical}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.field{margin-bottom:10px}
+.seg{display:grid;grid-template-columns:repeat(3,1fr);background:var(--board);border-radius:12px;padding:4px;gap:4px}
+.seg button{border:0;border-radius:9px;min-height:44px;background:transparent;font-weight:600}
+.seg button[aria-pressed="true"]{background:var(--sheet);box-shadow:0 1px 3px rgba(0,0,0,.18)}
+.seg button[data-s="open"][aria-pressed="true"]{color:var(--go)}
+.seg button[data-s="closed"][aria-pressed="true"]{color:var(--stop)}
+.seg button[data-s="maint"][aria-pressed="true"]{color:var(--maint)}
+
+/* ---------- sheet ---------- */
+.scrim{position:fixed;inset:0;background:rgba(10,16,20,.5);opacity:0;pointer-events:none;transition:opacity .2s;z-index:20}
+.scrim.on{opacity:1;pointer-events:auto}
+.sheet{position:fixed;left:0;right:0;bottom:0;max-height:92vh;overflow-y:auto;background:var(--sheet);
+  border-radius:20px 20px 0 0;padding:10px 16px calc(24px + env(safe-area-inset-bottom,0px));
+  transform:translateY(105%);transition:transform .25s ease;z-index:21;max-width:640px;margin:0 auto}
+.sheet.on{transform:none}
+.grab{width:44px;height:5px;border-radius:3px;background:var(--line);margin:0 auto 10px}
+.sheet-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px}
+.sheet-head h2{margin:0;font-size:2rem}
+.x{border:0;background:var(--board);border-radius:50%;width:44px;height:44px;font-size:1.3rem;line-height:1}
+.hist{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;font-size:.95rem}
+.hist th{font-weight:500;color:var(--ink-2);text-align:left;font-size:.8rem;padding:6px 4px;border-bottom:1px solid var(--line)}
+.hist td{padding:8px 4px;border-bottom:1px solid var(--line)}
+.spark{display:block;width:100%;height:64px}
+
+/* ---------- tasks ---------- */
+.prog{height:8px;border-radius:4px;background:var(--board);overflow:hidden;margin-top:8px}
+.prog i{display:block;height:100%;background:var(--go)}
+.check{display:flex;align-items:center;gap:12px;padding:10px 2px;border-top:1px solid var(--line);min-height:52px}
+.check input{width:26px;height:26px;min-height:0;accent-color:var(--go);flex:none}
+.check span{flex:1}
+.del{border:0;background:none;color:var(--stop);font-size:1.4rem;width:40px;height:40px}
+
+/* ---------- tab bar ---------- */
+nav.tabs{position:fixed;left:0;right:0;bottom:0;background:var(--tab);display:grid;grid-template-columns:repeat(4,1fr);
+  padding-bottom:env(safe-area-inset-bottom,0px);z-index:10}
+nav.tabs button{white-space:nowrap;border:0;background:none;color:var(--tab-ink);opacity:.62;min-height:62px;font:600 1.12rem/1 var(--fc);letter-spacing:.02em;position:relative}
+nav.tabs button[aria-current="page"]{opacity:1}
+nav.tabs button[aria-current="page"]::before{content:"";position:absolute;top:0;left:28%;right:28%;height:3px;background:var(--hold);border-radius:0 0 3px 3px}
+.badge{display:inline-block;min-width:18px;padding:0 5px;border-radius:9px;background:var(--stop);color:#fff;font:600 .72rem/18px var(--fb);margin-left:4px;vertical-align:2px}
+
+.toast{position:fixed;left:50%;bottom:calc(80px + env(safe-area-inset-bottom,0px));transform:translate(-50%,20px);opacity:0;
+  background:var(--ink);color:var(--board);padding:10px 16px;border-radius:10px;transition:.2s;z-index:30;pointer-events:none;max-width:90vw}
+.toast.on{opacity:1;transform:translate(-50%,0)}
+.foot{color:var(--ink-2);font-size:.85rem;text-align:center;margin-top:22px}
+@media (max-width:380px){.call{font-size:1.25rem}.v{font-size:1.15rem}.grid4{grid-template-columns:1fr 1fr}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<main id="app" aria-live="polite"></main>
+<nav class="tabs" id="tabs"></nav>
+<div class="scrim" id="scrim"></div>
+<section class="sheet" id="sheet" role="dialog" aria-modal="true"></section>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+(function(){
+"use strict";
+const KEY="poolcommand.v1";
+const POOLS=["Splash Landing","Aviator","F-15","Jet Stream","Puddle Jumper","Maverick","Runway 35"];
+const STATUS={open:"Open",closed:"Closed",maint:"Maintenance",hold:"Weather hold"};
+const LOGTYPES=["Note","Incident","Rescue","First aid","Maintenance","Chemical"];
+const DEFAULT_TASKS=["Water clear, main drain visible","Chemistry tested and logged","Rescue tubes and backboard in place","Gates, deck and drains clear","Emergency phone tested","First aid kit stocked"];
+
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
+function fresh(){return{
+  v:1,
+  pools:POOLS.map(n=>({id:n.toLowerCase().replace(/[^a-z0-9]+/g,"-"),name:n,status:"closed",prev:null})),
+  readings:[],parts:[],log:[],
+  tasks:{items:DEFAULT_TASKS.slice(),done:{}},
+  hold:null,
+  settings:{fc:[1,5],ph:[7.2,7.8],cc:0.4,checkHrs:2,holdMin:30,initials:""}
+}}
+let S;
+try{S=JSON.parse(localStorage.getItem(KEY)||localStorage.getItem("parkcommand.v1"))||fresh()}catch(e){S=fresh()}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){toast("Couldn't save. Storage may be full.")}}
+
+let tab="board", openPool=null, logFilter="All", editTasks=false, taskPool=null, sheetKind=null;
+const $=s=>document.querySelector(s);
+const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const pad=n=>String(n).padStart(2,"0");
+const hm=t=>{const d=new Date(t);return pad(d.getHours())+":"+pad(d.getMinutes())};
+const dayKey=t=>{const d=new Date(t);return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate())};
+const dayLabel=t=>{const k=dayKey(t),today=dayKey(Date.now()),y=dayKey(Date.now()-864e5);
+  return k===today?"Today":k===y?"Yesterday":new Date(t).toLocaleDateString(undefined,{weekday:"short",month:"short",day:"numeric"})};
+const ago=t=>{const m=Math.round((Date.now()-t)/6e4);if(m<1)return"just now";if(m<60)return m+" min ago";const h=Math.floor(m/60);if(h<24)return h+" h "+(m%60?m%60+" min ":"")+"ago";return dayLabel(t)};
+const pool=id=>S.pools.find(p=>p.id===id);
+const lastReading=id=>{let r=null;for(const x of S.readings)if(x.pool===id&&(!r||x.t>r.t))r=x;return r};
+
+function toast(msg){const t=$("#toast");t.textContent=msg;t.classList.add("on");clearTimeout(toast.h);toast.h=setTimeout(()=>t.classList.remove("on"),2200)}
+function buzz(p){try{navigator.vibrate&&navigator.vibrate(p)}catch(e){}}
+function bridge(){return window.PoolBridge||null}
+
+/* ---- range checks: "" ok, "warn", "bad" ---- */
+function rateFC(v){if(v==null||v==="")return"none";const[lo,hi]=S.settings.fc;if(v<lo||v>hi*2)return"bad";if(v>hi)return"warn";return""}
+function ratePH(v){if(v==null||v==="")return"none";const[lo,hi]=S.settings.ph;if(v<lo-0.2||v>hi+0.2)return"bad";if(v<lo||v>hi)return"warn";return""}
+function rateCC(v){if(v==null||v==="")return"none";const m=S.settings.cc;if(v>m*1.5)return"bad";if(v>m)return"warn";return""}
+function isDue(p){if(p.status!=="open")return false;const r=lastReading(p.id);return!r||Date.now()-r.t>S.settings.checkHrs*36e5}
+function poolAlerts(p){const r=lastReading(p.id),a=[];
+  if(isDue(p))a.push("check due");
+  if(r&&p.status==="open"){if(rateFC(r.fc)==="bad")a.push("chlorine out of range");if(ratePH(r.ph)==="bad")a.push("pH out of range");if(rateCC(r.cc)==="bad")a.push("combined chlorine high")}
+  return a}
+
+/* ---------- weather hold ---------- */
+function holdLeft(){if(!S.hold)return 0;return Math.max(0,S.hold.strike+S.settings.holdMin*6e4-Date.now())}
+function startHold(){
+  S.pools.forEach(p=>{if(p.status==="open"){p.prev="open";p.status="hold"}});
+  S.hold={start:Date.now(),strike:Date.now(),strikes:1,notified:false};
+  addLog(null,"Note","Weather hold started. All open pools cleared.");
+  save();buzz([200,100,200]);bridge()&&bridge().keepScreenOn(true);render();
+}
+function strikeAgain(){if(!S.hold)return;S.hold.strike=Date.now();S.hold.strikes++;S.hold.notified=false;
+  addLog(null,"Note","Weather hold clock reset after another strike ("+S.hold.strikes+" total).");save();buzz(150);render()}
+function endHold(){
+  const n=S.pools.filter(p=>p.status==="hold").length;
+  S.pools.forEach(p=>{if(p.status==="hold"){p.status=p.prev||"open";p.prev=null}});
+  const mins=S.hold?Math.round((Date.now()-S.hold.start)/6e4):0;
+  S.hold=null;addLog(null,"Note","Weather hold ended after "+mins+" min. "+n+" pool"+(n===1?"":"s")+" reopened.");
+  save();bridge()&&bridge().keepScreenOn(false);render();toast("Hold ended. Pools reopened.");
+}
+
+function addLog(poolId,type,text){S.log.push({id:uid(),pool:poolId,t:Date.now(),type,text,by:S.settings.initials||""})}
+
+/* ---------- views ---------- */
+function vBoard(){
+  const open=S.pools.filter(p=>p.status==="open").length;
+  const counts={};S.pools.forEach(p=>counts[p.status]=(counts[p.status]||0)+1);
+  const parts=[];if(counts.closed)parts.push(counts.closed+" closed");if(counts.maint)parts.push(counts.maint+" in maintenance");if(counts.hold)parts.push(counts.hold+" on weather hold");
+  const alerts=S.pools.map(p=>[p,poolAlerts(p)]).filter(x=>x[1].length);
+  let h=`<div class="top"><h1 class="brand">PoolCommand</h1><div class="clock" id="clock">${hm(Date.now())}</div></div>
+  <p class="summary"><b>${open} of 7 pools open</b>${parts.length?", "+parts.join(", "):""}.${alerts.length?` <span class="due">${alerts.length} need${alerts.length===1?"s":""} attention.</span>`:""}</p>`;
+  if(S.hold){
+    const left=holdLeft(),done=left===0;
+    h+=`<div class="hold-on ${done?"hold-done":""}"><div class="hold-in">
+      <div class="muted">${done?"Clear to reopen":"Weather hold. Pools reopen in"}</div>
+      <div class="count" id="holdcount">${fmtLeft(left)}</div>
+      <p>Last strike at ${hm(S.hold.strike)}${S.hold.strikes>1?" ("+S.hold.strikes+" strikes)":""}. Clock is ${S.settings.holdMin} minutes from the last strike.</p>
+      <div class="row"><button class="btn warn" data-act="strike">Strike again</button><button class="btn ${done?"":"ghost"}" data-act="endhold">End hold and reopen</button></div>
+    </div></div>`;
+  }else{
+    h+=`<div class="holdbar"><p>Thunder or lightning? Clear every open pool and start a ${S.settings.holdMin}-minute clock.</p><button class="btn warn" data-act="hold">Weather hold</button></div>`;
+  }
+  h+=`<div class="rack">`+S.pools.map(p=>{
+    const r=lastReading(p.id),due=isDue(p),cold=p.status!=="open";
+    const fc=r&&r.fc!==""&&r.fc!=null?r.fc:null, ph=r&&r.ph!==""&&r.ph!=null?r.ph:null;
+    return `<button class="strip s-${p.status} ${cold?"cold":""}" data-pool="${p.id}" aria-label="${esc(p.name)}, ${STATUS[p.status]}">
+      <span class="edge"></span>
+      <span class="cell"><span class="call">${esc(p.name)}</span><span class="stat">${STATUS[p.status]}</span></span>
+      <span class="cell"><span class="k">Chlorine</span><span class="v ${rateFC(fc)}">${fc==null?"—":fc}</span></span>
+      <span class="cell"><span class="k">pH</span><span class="v ${ratePH(ph)}">${ph==null?"—":ph}</span></span>
+      <span class="cell"><span class="k">Checked</span><span class="v ${r?"":"none"} ${due?"bad":""}" style="font-size:1.05rem">${r?hm(r.t):"Never"}</span>${due?'<span class="k due">Due</span>':""}</span>
+    </button>`}).join("")+`</div>
+  <div class="legend"><span><i style="background:var(--go)"></i>Open</span><span><i style="background:var(--stop)"></i>Closed</span><span><i style="background:var(--maint)"></i>Maintenance</span><span><i style="background:repeating-linear-gradient(180deg,var(--hold) 0 4px,#1B1300 4px 8px)"></i>Weather hold</span></div>
+  <p class="foot">Tap a pool to log a reading, change its status or record a part.</p>`;
+  return h;
+}
+function fmtLeft(ms){const s=Math.ceil(ms/1000);return pad(Math.floor(s/60))+":"+pad(s%60)}
+
+function vLog(){
+  const items=[];
+  S.log.forEach(e=>items.push({t:e.t,pool:e.pool,what:e.type,txt:e.text,by:e.by,red:["Incident","Rescue","First aid"].includes(e.type)}));
+  S.readings.forEach(r=>items.push({t:r.t,pool:r.pool,what:"Reading",txt:fmtReading(r),by:r.by,red:poolReadingBad(r)}));
+  S.parts.forEach(x=>items.push({t:x.t,pool:x.pool,what:"Part replaced",txt:x.part+(x.note?"\n"+x.note:""),by:x.by}));
+  const kinds=["All","Reading","Part replaced",...LOGTYPES];
+  const list=items.filter(i=>logFilter==="All"||i.what===logFilter).sort((a,b)=>b.t-a.t).slice(0,300);
+  let h=`<div class="top"><h2 style="margin:0">Shift log</h2><button class="btn small" data-act="newlog">Add entry</button></div>
+  <div class="chips">${kinds.map(k=>`<button class="chip" data-filter="${esc(k)}" aria-pressed="${k===logFilter}">${esc(k)}</button>`).join("")}</div>`;
+  if(!list.length)return h+`<p class="empty">Nothing logged yet. Readings, parts and notes you add show up here, newest first.</p>`;
+  let day="";h+=`<div class="feed">`;
+  list.forEach(i=>{const d=dayLabel(i.t);if(d!==day){day=d;h+=`<h3>${esc(d)}</h3>`}
+    const p=i.pool&&pool(i.pool);
+    h+=`<div class="entry"><time>${hm(i.t)}</time><div class="what">${esc(i.what)}${p?`<span class="tag">${esc(p.name)}</span>`:""}${i.red?'<span class="tag red">Flag</span>':""}${i.by?`<span class="tag">${esc(i.by)}</span>`:""}</div><div class="txt">${esc(i.txt)}</div></div>`});
+  return h+`</div>`;
+}
+function fmtReading(r){const a=[];if(r.fc!==""&&r.fc!=null)a.push("FC "+r.fc);if(r.cc!==""&&r.cc!=null)a.push("CC "+r.cc);if(r.ph!==""&&r.ph!=null)a.push("pH "+r.ph);if(r.temp!==""&&r.temp!=null)a.push(r.temp+"°");return a.join(", ")+(r.note?"\n"+r.note:"")}
+function poolReadingBad(r){return rateFC(r.fc)==="bad"||ratePH(r.ph)==="bad"||rateCC(r.cc)==="bad"}
+
+function vTasks(){
+  const today=dayKey(Date.now()),done=S.tasks.done[today]||{},n=S.tasks.items.length;
+  let h=`<div class="top"><h2 style="margin:0">Opening checks</h2><button class="btn small ghost" data-act="edittasks">${editTasks?"Done":"Edit list"}</button></div>
+  <p class="summary">${new Date().toLocaleDateString(undefined,{weekday:"long",month:"long",day:"numeric"})}. Checks reset each morning.</p>`;
+  if(editTasks){
+    h+=`<div class="card">${S.tasks.items.map((t,i)=>`<div class="check"><span>${esc(t)}</span><button class="del" data-deltask="${i}" aria-label="Remove ${esc(t)}">×</button></div>`).join("")}
+    <div class="check"><input id="newtask" placeholder="Add a check" style="width:auto;flex:1;height:48px;min-height:48px"><button class="btn small" data-act="addtask">Add</button></div></div>`;
+    return h;
+  }
+  S.pools.forEach(p=>{const d=done[p.id]||[],c=d.length,openNow=taskPool===p.id;
+    h+=`<div class="card"><button data-taskpool="${p.id}" style="all:unset;display:block;width:100%;cursor:pointer" aria-expanded="${openNow}">
+      <div style="display:flex;justify-content:space-between;align-items:baseline"><span class="call" style="font-size:1.35rem">${esc(p.name)}</span><span class="num muted">${c} of ${n}</span></div>
+      <div class="prog"><i style="width:${n?c/n*100:0}%"></i></div></button>
+      ${openNow?S.tasks.items.map((t,i)=>`<label class="check" style="color:var(--ink);font-size:1rem;margin:0"><input type="checkbox" data-task="${p.id}:${i}" ${d.includes(i)?"checked":""}><span>${esc(t)}</span></label>`).join(""):""}
+    </div>`});
+  return h;
+}
+
+function vMore(){
+  const st=S.settings;
+  const ver=bridge()&&bridge().version?bridge().version():"web";
+  return `<h2>Settings and data</h2>
+  <div class="card"><h3 style="margin-top:0">Your initials</h3><p class="muted" style="margin-top:0">Added to everything you log, so the shift record shows who did what.</p>
+    <input id="initials" maxlength="6" value="${esc(st.initials)}" placeholder="e.g. DC" autocapitalize="characters"></div>
+  <div class="card"><h3 style="margin-top:0">Ranges</h3><p class="muted" style="margin-top:0">Set these to match your local health code. Values outside them are flagged on the board.</p>
+    <div class="grid2"><div class="field"><label for="fclo">Free chlorine low (ppm)</label><input id="fclo" type="number" step="0.1" inputmode="decimal" value="${st.fc[0]}"></div>
+    <div class="field"><label for="fchi">Free chlorine high (ppm)</label><input id="fchi" type="number" step="0.1" inputmode="decimal" value="${st.fc[1]}"></div>
+    <div class="field"><label for="phlo">pH low</label><input id="phlo" type="number" step="0.1" inputmode="decimal" value="${st.ph[0]}"></div>
+    <div class="field"><label for="phhi">pH high</label><input id="phhi" type="number" step="0.1" inputmode="decimal" value="${st.ph[1]}"></div>
+    <div class="field"><label for="ccmax">Combined chlorine max</label><input id="ccmax" type="number" step="0.1" inputmode="decimal" value="${st.cc}"></div>
+    <div class="field"><label for="chk">Test every (hours)</label><input id="chk" type="number" step="0.5" inputmode="decimal" value="${st.checkHrs}"></div>
+    <div class="field"><label for="holdm">Weather hold (minutes)</label><input id="holdm" type="number" step="1" inputmode="numeric" value="${st.holdMin}"></div></div>
+    <button class="btn" data-act="savesettings">Save settings</button></div>
+  <div class="card"><h3 style="margin-top:0">Export</h3><p class="muted" style="margin-top:0">Send readings as a spreadsheet file, or back up everything so you can restore it on another phone.</p>
+    <div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn" data-act="csv">Share readings (CSV)</button><button class="btn ghost" data-act="backup">Share full backup</button><button class="btn ghost" data-act="restore">Restore backup</button></div></div>
+  <div class="card"><h3 style="margin-top:0">Start over</h3><p class="muted" style="margin-top:0">Erases every reading, log entry and part on this phone. Share a backup first.</p>
+    <button class="btn danger" data-act="wipe">Erase all data</button></div>
+  <p class="foot">PoolCommand ${esc(ver)}. Data is stored on this phone only.</p>`;
+}
+
+/* ---------- pool sheet ---------- */
+function spark(vals,lo,hi){
+  if(vals.length<2)return"";
+  const w=300,h=64,min=Math.min(lo,...vals),max=Math.max(hi,...vals),sp=(max-min)||1;
+  const y=v=>h-4-(v-min)/sp*(h-8),x=i=>i/(vals.length-1)*w;
+  const pts=vals.map((v,i)=>x(i).toFixed(1)+","+y(v).toFixed(1)).join(" ");
+  return `<svg class="spark" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true">
+    <rect x="0" y="${y(hi)}" width="${w}" height="${Math.max(0,y(lo)-y(hi))}" fill="var(--go)" opacity=".14"/>
+    <polyline points="${pts}" fill="none" stroke="var(--ink)" stroke-width="2" vector-effect="non-scaling-stroke"/></svg>`;
+}
+function sheetPool(p){
+  const rs=S.readings.filter(r=>r.pool===p.id).sort((a,b)=>a.t-b.t);
+  const last=rs.slice(-12), parts=S.parts.filter(x=>x.pool===p.id).sort((a,b)=>b.t-a.t);
+  const fcs=last.map(r=>parseFloat(r.fc)).filter(v=>!isNaN(v)), phs=last.map(r=>parseFloat(r.ph)).filter(v=>!isNaN(v));
+  const alerts=poolAlerts(p);
+  return `<div class="grab"></div><div class="sheet-head"><h2>${esc(p.name)}</h2><button class="x" data-act="close" aria-label="Close">×</button></div>
+  ${p.status==="hold"?`<p class="card" style="margin-top:0">On weather hold. End the hold from the board to reopen.</p>`:
+  `<div class="seg" role="group" aria-label="Status">${["open","closed","maint"].map(s=>`<button data-s="${s}" data-status="${s}" aria-pressed="${p.status===s}">${STATUS[s]}</button>`).join("")}</div>`}
+  ${alerts.length?`<p class="due" style="margin:12px 2px 0">Needs attention: ${esc(alerts.join(", "))}.</p>`:""}
+  <h3>Log a reading</h3>
+  <div class="grid4">
+    <div><label for="r-fc">Free Cl</label><input id="r-fc" type="number" step="0.1" inputmode="decimal"></div>
+    <div><label for="r-cc">Comb. Cl</label><input id="r-cc" type="number" step="0.1" inputmode="decimal"></div>
+    <div><label for="r-ph">pH</label><input id="r-ph" type="number" step="0.1" inputmode="decimal"></div>
+    <div><label for="r-t">Temp °</label><input id="r-t" type="number" step="1" inputmode="decimal"></div>
+  </div>
+  <div class="field" style="margin-top:8px"><input id="r-note" placeholder="Note (optional)"></div>
+  <button class="btn" style="width:100%" data-act="savereading">Save reading</button>
+  ${last.length?`<h3>Recent readings</h3>
+    ${fcs.length>1?`<div class="k">Free chlorine, shaded band is your range</div>${spark(fcs,S.settings.fc[0],S.settings.fc[1])}`:""}
+    ${phs.length>1?`<div class="k" style="margin-top:6px">pH</div>${spark(phs,S.settings.ph[0],S.settings.ph[1])}`:""}
+    <table class="hist"><thead><tr><th>When</th><th>FC</th><th>CC</th><th>pH</th><th>Temp</th></tr></thead><tbody>
+    ${last.slice().reverse().slice(0,8).map(r=>`<tr><td>${dayKey(r.t)===dayKey(Date.now())?hm(r.t):esc(dayLabel(r.t))+" "+hm(r.t)}</td><td class="${rateFC(r.fc)==="bad"?"due":""}">${esc(r.fc)}</td><td>${esc(r.cc)}</td><td class="${ratePH(r.ph)==="bad"?"due":""}">${esc(r.ph)}</td><td>${esc(r.temp)}</td></tr>`).join("")}
+    </tbody></table>`:""}
+  <h3>Part replaced</h3>
+  <div class="field"><input id="p-part" placeholder="Part, e.g. Pump 2 shaft seal"></div>
+  <div class="field"><input id="p-note" placeholder="Note, e.g. vendor, cost, why (optional)"></div>
+  <button class="btn ghost" style="width:100%" data-act="savepart">Log part</button>
+  ${parts.length?`<div style="margin-top:10px">${parts.slice(0,6).map(x=>`<div class="check" style="display:block"><b>${esc(x.part)}</b> <span class="muted num">${esc(dayLabel(x.t))}, ${hm(x.t)}</span>${x.note?`<div class="muted">${esc(x.note)}</div>`:""}</div>`).join("")}</div>`:""}
+  `;
+}
+function sheetNewLog(){
+  return `<div class="grab"></div><div class="sheet-head"><h2>Add entry</h2><button class="x" data-act="close" aria-label="Close">×</button></div>
+  <div class="grid2"><div class="field"><label for="l-type">Type</label><select id="l-type">${LOGTYPES.map(t=>`<option>${t}</option>`).join("")}</select></div>
+  <div class="field"><label for="l-pool">Pool</label><select id="l-pool"><option value="">Whole park</option>${S.pools.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join("")}</select></div></div>
+  <div class="field"><label for="l-text">What happened</label><textarea id="l-text" placeholder="Who, what, where, and what was done"></textarea></div>
+  <button class="btn" style="width:100%" data-act="savelog">Save entry</button>`;
+}
+function sheetRestore(){
+  return `<div class="grab"></div><div class="sheet-head"><h2>Restore backup</h2><button class="x" data-act="close" aria-label="Close">×</button></div>
+  <p class="muted">Paste the full text of a PoolCommand backup. It replaces everything on this phone.</p>
+  <div class="field"><textarea id="rs-text" style="min-height:160px" placeholder='{"v":1, ...}'></textarea></div>
+  <button class="btn danger" style="width:100%" data-act="dorestore">Replace data with this backup</button>`;
+}
+function openSheet(kind,id){sheetKind=kind;openPool=id||null;drawSheet();$("#sheet").classList.add("on");$("#scrim").classList.add("on")}
+function drawSheet(){const s=$("#sheet");
+  if(sheetKind==="pool")s.innerHTML=sheetPool(pool(openPool));
+  else if(sheetKind==="log")s.innerHTML=sheetNewLog();
+  else if(sheetKind==="restore")s.innerHTML=sheetRestore()}
+function closeSheet(){$("#sheet").classList.remove("on");$("#scrim").classList.remove("on");sheetKind=null;openPool=null}
+window.pcBack=function(){if(sheetKind){closeSheet();return true}if(tab!=="board"){tab="board";render();return true}return false};
+
+/* ---------- render ---------- */
+function render(){
+  const v={board:vBoard,log:vLog,tasks:vTasks,more:vMore}[tab];
+  $("#app").innerHTML=v();
+  const due=S.pools.filter(p=>poolAlerts(p).length).length;
+  const today=dayKey(Date.now()),done=S.tasks.done[today]||{};
+  const left=S.pools.filter(p=>p.status==="open"&&(done[p.id]||[]).length<S.tasks.items.length).length;
+  $("#tabs").innerHTML=[["board","Board",due],["log","Log",0],["tasks","Checks",left],["more","More",0]]
+    .map(([k,l,b])=>`<button data-tab="${k}" ${tab===k?'aria-current="page"':""}>${l}${b?`<span class="badge">${b}</span>`:""}</button>`).join("");
+  if(sheetKind)drawSheet();
+}
+function num(id){const v=$(id).value.trim();return v===""?"":parseFloat(v)}
+
+/* ---------- events ---------- */
+document.addEventListener("click",e=>{
+  const t=e.target.closest("button,[data-pool]");if(!t)return;
+  const d=t.dataset;
+  if(d.tab){tab=d.tab;closeSheet();render();window.scrollTo(0,0);return}
+  if(d.pool){openSheet("pool",d.pool);return}
+  if(d.filter){logFilter=d.filter;render();return}
+  if(d.taskpool){taskPool=taskPool===d.taskpool?null:d.taskpool;render();return}
+  if(d.deltask!=null){S.tasks.items.splice(+d.deltask,1);S.tasks.done={};save();render();return}
+  if(d.status){const p=pool(openPool);if(p.status!==d.status){addLog(p.id,"Note",p.name+" set to "+STATUS[d.status]+".");p.status=d.status;save();render();buzz(30)}return}
+  switch(d.act){
+    case"close":closeSheet();break;
+    case"hold":startHold();break;
+    case"strike":strikeAgain();break;
+    case"endhold":
+      if(holdLeft()>0&&!confirm("The clock hasn't run out. End the hold and reopen anyway?"))break;
+      endHold();break;
+    case"savereading":{
+      const r={id:uid(),pool:openPool,t:Date.now(),fc:num("#r-fc"),cc:num("#r-cc"),ph:num("#r-ph"),temp:num("#r-t"),note:$("#r-note").value.trim(),by:S.settings.initials||""};
+      if(r.fc===""&&r.cc===""&&r.ph===""&&r.temp===""){toast("Enter at least one value.");break}
+      S.readings.push(r);save();render();buzz(30);
+      toast(poolReadingBad(r)?"Saved. A value is out of range.":"Reading saved.");break}
+    case"savepart":{
+      const part=$("#p-part").value.trim();if(!part){toast("Enter the part that was replaced.");break}
+      S.parts.push({id:uid(),pool:openPool,t:Date.now(),part,note:$("#p-note").value.trim(),by:S.settings.initials||""});save();render();toast("Part logged.");break}
+    case"newlog":openSheet("log");break;
+    case"savelog":{
+      const text=$("#l-text").value.trim();if(!text){toast("Describe what happened.");break}
+      addLog($("#l-pool").value||null,$("#l-type").value,text);save();closeSheet();render();toast("Entry saved.");break}
+    case"edittasks":editTasks=!editTasks;render();break;
+    case"addtask":{const v=$("#newtask").value.trim();if(v){S.tasks.items.push(v);save();render();$("#newtask").focus()}break}
+    case"savesettings":{
+      const g=id=>parseFloat($(id).value);
+      const fc=[g("#fclo"),g("#fchi")],ph=[g("#phlo"),g("#phhi")];
+      if([...fc,...ph,g("#ccmax"),g("#chk"),g("#holdm")].some(isNaN)||fc[0]>=fc[1]||ph[0]>=ph[1]){toast("Check the ranges: each low must be under its high.");break}
+      Object.assign(S.settings,{fc,ph,cc:g("#ccmax"),checkHrs:g("#chk"),holdMin:Math.round(g("#holdm"))});save();toast("Settings saved.");break}
+    case"csv":share("PoolCommand readings",csv());break;
+    case"backup":share("PoolCommand backup "+dayKey(Date.now()),JSON.stringify(S));break;
+    case"restore":openSheet("restore");break;
+    case"dorestore":{
+      try{const n=JSON.parse($("#rs-text").value);if(!n||n.v!==1||!Array.isArray(n.pools))throw 0;
+        if(!confirm("Replace all data on this phone with this backup?"))break;
+        S=n;save();closeSheet();render();toast("Backup restored.")}catch(err){toast("That text isn't a PoolCommand backup.")}break}
+    case"wipe":
+      if(confirm("Erase every reading, log entry and part? This can't be undone.")){S=fresh();save();render();toast("All data erased.")}break;
+  }
+});
+document.addEventListener("change",e=>{
+  const t=e.target;
+  if(t.dataset.task){const[pid,i]=t.dataset.task.split(":");const k=dayKey(Date.now());
+    S.tasks.done[k]=S.tasks.done[k]||{};const a=S.tasks.done[k][pid]=S.tasks.done[k][pid]||[];
+    const idx=+i;if(t.checked){if(!a.includes(idx))a.push(idx)}else a.splice(a.indexOf(idx),1);
+    for(const d in S.tasks.done)if(d!==k)delete S.tasks.done[d];
+    save();render();buzz(15)}
+  if(t.id==="initials"){S.settings.initials=t.value.trim().toUpperCase();save()}
+});
+document.addEventListener("keydown",e=>{if(e.key==="Enter"&&e.target.id==="newtask")$('[data-act="addtask"]').click();if(e.key==="Escape"&&sheetKind)closeSheet()});
+$("#scrim").addEventListener("click",closeSheet);
+
+function csv(){
+  const q=v=>{v=String(v==null?"":v);return/[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v};
+  const rows=[["date","time","pool","free_chlorine","combined_chlorine","ph","temp","note","initials"]];
+  S.readings.slice().sort((a,b)=>a.t-b.t).forEach(r=>rows.push([dayKey(r.t),hm(r.t),(pool(r.pool)||{}).name,r.fc,r.cc,r.ph,r.temp,r.note,r.by]));
+  return rows.map(r=>r.map(q).join(",")).join("\n");
+}
+function share(title,text){
+  const b=bridge();
+  if(b){b.share(title,text);return}
+  if(navigator.share){navigator.share({title,text}).catch(()=>{});return}
+  if(navigator.clipboard){navigator.clipboard.writeText(text).then(()=>toast("Copied to clipboard."),()=>toast("Couldn't copy."));return}
+  toast("Sharing isn't available here.");
+}
+
+/* ---------- tick: clock, hold countdown ---------- */
+setInterval(()=>{
+  const c=$("#clock");if(c)c.textContent=hm(Date.now());
+  if(S.hold){const left=holdLeft(),el=$("#holdcount");
+    if(el)el.textContent=fmtLeft(left);
+    if(left===0&&!S.hold.notified){S.hold.notified=true;save();buzz([400,150,400,150,400]);toast("Hold clock finished. Clear to reopen.");render()}}
+},1000);
+let lastMin=new Date().getMinutes();
+setInterval(()=>{const m=new Date().getMinutes();if(m!==lastMin){lastMin=m;if(tab==="board"&&!sheetKind)render()}},5000);
+
+render();
+})();
+</script>
+</body>
+</html>

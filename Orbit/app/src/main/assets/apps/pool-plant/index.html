@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Pool Plant</title>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;500;600&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#141a2b;--mut:#5b6478;--line:#e3e7f0;--acc:#5a48e8;--fb:Manrope,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;--fd:Unbounded,Manrope,system-ui,sans-serif}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;min-height:100%}
+body{font:400 16px/1.45 var(--fb);color:var(--ink);background:linear-gradient(165deg,#d9d9f4 0%,#e7ebf6 34%,#eef1f6 100%) fixed;
+ padding:calc(18px + env(safe-area-inset-top,0px)) 20px calc(36px + env(safe-area-inset-bottom,0px))}
+.wrap{max-width:560px;margin:0 auto}
+.nav{display:flex;align-items:center;justify-content:space-between;min-height:48px;margin-bottom:10px}
+.nav a,.nav button{font:600 1.15rem/1 var(--fb);color:var(--acc);text-decoration:none;background:none;border:0;padding:10px 0;cursor:pointer}
+h1{font:500 clamp(1.9rem,8.4vw,2.7rem)/1.12 var(--fd);letter-spacing:-.02em;margin:6px 0 14px}
+.sub{color:var(--mut);font-size:1.15rem;margin:0 0 24px}
+.list{background:#fff;border-radius:28px;box-shadow:0 12px 34px rgba(70,70,140,.12);overflow:hidden}
+.row{display:flex;align-items:center;gap:16px;width:100%;min-height:84px;padding:18px 22px;border:0;border-top:1px solid var(--line);background:#fff;color:inherit;text-align:left;text-decoration:none;font:inherit;cursor:pointer}
+.row:first-child{border-top:0}.row:active{background:#f3f4fb}
+.e{font-size:2rem;line-height:1;flex:none;width:2.2rem;text-align:center}
+.tx{flex:1;min-width:0}.t{font:600 1.35rem/1.2 var(--fb);display:block}.d{display:block;color:var(--mut);font-size:.95rem;margin-top:3px}
+.cnt{color:var(--mut);font-size:1.3rem}
+.chev{width:10px;height:10px;border-right:2.5px solid #2a3047;border-bottom:2.5px solid #2a3047;transform:rotate(-45deg);margin:0 6px 0 4px;flex:none}
+.empty{padding:34px 24px;text-align:center;color:var(--mut);font-size:1.05rem}
+.foot{color:var(--mut);text-align:center;font-size:.85rem;margin-top:22px}
+</style></head><body><div class="wrap" id="app"></div>
+<script>
+// seven pools; Splash Landing holds the two tools built so far
+var POOLS=[
+ {id:'splash',n:'Splash Landing',items:[
+  {t:'Heating Plant Emulator',d:'Simulate pump, heater and pool temperature',i:'\uD83C\uDF21\uFE0F',u:'emulator.html'},
+  {t:'3D Plant',d:'Simulate, take apart, video tour. Needs internet for the 3D library',i:'\uD83C\uDFA5',u:'model3d.html'}]},
+ {id:'aviator',n:'Aviator',items:[]},
+ {id:'f15',n:'F-15',items:[]},
+ {id:'jet',n:'Jet Stream',items:[]},
+ {id:'puddle',n:'Puddle Jumper',items:[]},
+ {id:'maverick',n:'Maverick',items:[]},
+ {id:'runway',n:'Runway 35',items:[]}];
+var app=document.getElementById('app');
+function esc(s){return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+function home(){
+ app.innerHTML='<h1>Pools Maintenance</h1><p class="sub">Pick a pool to see its projects.</p><div class="list">'+
+  POOLS.map(function(p){return '<button class="row" data-id="'+p.id+'"><span class="e" aria-hidden="true">\uD83D\uDCA7</span><span class="tx"><span class="t">'+esc(p.n)+'</span></span><span class="cnt">'+p.items.length+'</span><span class="chev" aria-hidden="true"></span></button>'}).join('')+'</div>'+
+  '<p class="foot">App version 35 &middot; seven pools</p>';
+ [].forEach.call(app.querySelectorAll('.row'),function(b){b.onclick=function(){location.hash='#/'+b.getAttribute('data-id')}});
+}
+function pool(p){
+ app.innerHTML='<div class="nav"><button id="bk">\u2039 Pools</button></div><h1>'+esc(p.n)+'</h1><p class="sub">'+(p.items.length?'Pick a project to open it.':'No projects here yet.')+'</p>'+
+  (p.items.length?'<div class="list">'+p.items.map(function(x){return '<a class="row" href="'+x.u+'"><span class="e" aria-hidden="true">'+x.i+'</span><span class="tx"><span class="t">'+esc(x.t)+'</span><span class="d">'+esc(x.d)+'</span></span><span class="chev" aria-hidden="true"></span></a>'}).join('')+'</div>':
+  '<div class="list"><div class="empty">Nothing added to '+esc(p.n)+' yet.</div></div>');
+ document.getElementById('bk').onclick=function(){if(history.length>1)history.back();else location.hash='#/'};
+}
+function route(){
+ var id=(location.hash.match(/^#\/(\w+)/)||[])[1],p=POOLS.filter(function(x){return x.id===id})[0];
+ if(p)pool(p);else home();window.scrollTo(0,0);
+}
+window.addEventListener('hashchange',route);route();
+</script></body></html>

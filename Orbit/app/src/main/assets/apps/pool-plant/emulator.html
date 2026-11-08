@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pool Plant Emulator</title>
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--tx:#1b2430;--mut:#6a7686;--ln:#d9dee6;--pipe:#6b7785;--water:#2b8fd6;--hot:#e5532d;--ok:#2e9e5b;--bad:#d63c3c;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#12161c;--card:#1b222b;--tx:#e8edf3;--mut:#93a0b0;--ln:#2d3745;--pipe:#8d99a8;--water:#4aa8ee;--hot:#ff7048}}
+:root[data-theme="dark"]{--bg:#12161c;--card:#1b222b;--tx:#e8edf3;--mut:#93a0b0;--ln:#2d3745;--pipe:#8d99a8;--water:#4aa8ee;--hot:#ff7048}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.4 system-ui,-apple-system,Segoe UI,sans-serif;padding:12px;max-width:760px;margin-inline:auto}
+h1{font-size:18px;margin:4px 0 10px}
+.card{background:var(--card);border:1px solid var(--ln);border-radius:12px;padding:12px;margin-bottom:12px}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+.stat{flex:1 1 90px;min-width:90px}
+.stat b{display:block;font-size:22px}
+.stat span{color:var(--mut);font-size:12px}
+label{display:flex;justify-content:space-between;font-size:13px;color:var(--mut);margin-top:8px}
+input[type=range]{width:100%}
+button{font:inherit;border:1px solid var(--ln);background:var(--card);color:var(--tx);border-radius:8px;padding:8px 12px}
+button.on{background:var(--ok);color:#fff;border-color:var(--ok)}
+.pill{display:inline-block;padding:2px 10px;border-radius:99px;font-size:12px;color:#fff;background:var(--mut)}
+.pill.fire{background:var(--hot)}.pill.bad{background:var(--bad)}
+svg{width:100%;height:auto;display:block}
+.flow{stroke-dasharray:8 8;animation:dash 0.8s linear infinite}
+.paused .flow{animation:none}
+@keyframes dash{to{stroke-dashoffset:-16}}
+canvas{width:100%;height:150px;display:block}
+#alarm{color:var(--bad);font-weight:600;min-height:20px;font-size:13px}
+</style>
+</head>
+<body>
+<h1>Pool Heating Plant Emulator</h1>
+
+<div class="card">
+<svg id="plant" viewBox="0 0 700 200" class="paused" role="img" aria-label="Pool plant schematic">
+ <rect x="10" y="60" width="130" height="90" rx="8" fill="var(--water)" opacity=".35" stroke="var(--water)" stroke-width="2"/>
+ <text x="75" y="110" text-anchor="middle" fill="var(--tx)" font-size="14">POOL</text>
+ <text id="svTemp" x="75" y="132" text-anchor="middle" fill="var(--tx)" font-size="13">78°F</text>
+ <path d="M140 140 H210" stroke="var(--pipe)" stroke-width="10" fill="none"/>
+ <path class="flow" d="M140 140 H210" stroke="var(--water)" stroke-width="3" fill="none"/>
+ <circle cx="235" cy="140" r="24" fill="var(--card)" stroke="var(--pipe)" stroke-width="4"/>
+ <text x="235" y="145" text-anchor="middle" fill="var(--tx)" font-size="12">PUMP</text>
+ <rect x="195" y="72" width="80" height="30" rx="4" fill="var(--card)" stroke="var(--pipe)" stroke-width="2"/>
+ <text x="235" y="92" text-anchor="middle" fill="var(--tx)" font-size="11">CHEM PANEL</text>
+ <path d="M259 140 H300" stroke="var(--pipe)" stroke-width="10" fill="none"/>
+ <path class="flow" d="M259 140 H300" stroke="var(--water)" stroke-width="3" fill="none"/>
+ <g id="filters"></g>
+ <path d="M440 140 H480" stroke="var(--pipe)" stroke-width="10" fill="none"/>
+ <path class="flow" d="M440 140 H480" stroke="var(--water)" stroke-width="3" fill="none"/>
+ <rect x="480" y="75" width="130" height="90" rx="6" fill="var(--card)" stroke="var(--pipe)" stroke-width="4"/>
+ <rect id="burner" x="492" y="130" width="106" height="26" rx="4" fill="var(--hot)" opacity="0"/>
+ <text x="545" y="110" text-anchor="middle" fill="var(--tx)" font-size="13">GAS HEATER</text>
+ <rect x="510" y="30" width="14" height="45" fill="var(--pipe)"/><rect x="566" y="30" width="14" height="45" fill="var(--pipe)"/>
+ <path d="M610 120 H660 V40 H100 V60" stroke="var(--pipe)" stroke-width="10" fill="none"/>
+ <path id="hotline" class="flow" d="M610 120 H660 V40 H100 V60" stroke="var(--water)" stroke-width="3" fill="none"/>
+</svg>
+<div id="alarm"></div>
+</div>
+
+<div class="card row">
+ <div class="stat"><b id="tPool">--</b><span>Pool °F</span></div>
+ <div class="stat"><b id="tSet">--</b><span>Setpoint °F</span></div>
+ <div class="stat"><b id="status"><span class="pill">OFF</span></b><span>Heater</span></div>
+ <div class="stat"><b id="gas">0</b><span>Gas used (therms)</span></div>
+ <div class="stat"><b id="cost">$0</b><span>Gas cost</span></div>
+ <div class="stat"><b id="clock">0h</b><span>Sim time</span></div>
+</div>
+
+<div class="card"><canvas id="chart" width="700" height="150"></canvas></div>
+
+<div class="card">
+ <div class="row">
+  <button id="bPump">Pump: OFF</button>
+  <button id="bHeat">Heater: OFF</button>
+  <button id="bCover">Cover: OFF</button>
+  <button id="bValve">Flow valve: OPEN</button>
+  <button id="bReset">Reset</button>
+ </div>
+ <label>Setpoint <span id="vSet"></span></label><input id="set" type="range" min="70" max="90" value="82">
+ <label>Air temp <span id="vAir"></span></label><input id="air" type="range" min="20" max="100" value="60">
+ <label>Wind <span id="vWind"></span></label><input id="wind" type="range" min="0" max="25" value="5">
+ <label>Heater input (BTU/hr) <span id="vBtu"></span></label><input id="btu" type="range" min="200000" max="2000000" step="50000" value="1000000">
+ <label>Pool volume (gal) <span id="vVol"></span></label><input id="vol" type="range" min="20000" max="500000" step="5000" value="100000">
+ <label>Sim speed (min/sec) <span id="vSpd"></span></label><input id="spd" type="range" min="1" max="240" value="60">
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+const S0={temp:68,pump:false,heat:false,cover:false,valve:true,firing:false,gas:0,t:0,hist:[],lock:false};
+let S=JSON.parse(JSON.stringify(S0));
+const EFF=0.84,PRICE=1.2,DEPTH=4.5;
+const P=()=>({set:+$('set').value,air:+$('air').value,wind:+$('wind').value,btu:+$('btu').value,vol:+$('vol').value,spd:+$('spd').value});
+
+// filters
+const fg=$('filters');let fh='';
+for(let i=0;i<4;i++){const x=303+i*34;fh+=`<ellipse cx="${x+14}" cy="130" rx="15" ry="26" fill="#5fd0b0" opacity=".85" stroke="var(--pipe)" stroke-width="2"/>`;}
+fg.innerHTML=fh+'<text x="372" y="182" text-anchor="middle" fill="var(--mut)" font-size="11">4 SAND FILTERS</text>';
+fg.insertAdjacentHTML('beforeend','<path d="M300 140 H440" stroke="var(--pipe)" stroke-width="10" fill="none" opacity=".4"/><path class="flow" d="M300 140 H440" stroke="var(--water)" stroke-width="3" fill="none"/>');
+
+function step(dtMin){
+ const p=P();
+ const flow=S.pump&&S.valve;
+ const call=S.heat&&(S.firing?S.temp<p.set:S.temp<p.set-1);
+ // safety: heater needs flow
+ if(call&&!flow){S.lock=true}
+ if(!call||flow){S.lock=S.lock&&call&&!flow}
+ S.firing=call&&flow;
+ const area=p.vol/(DEPTH*7.48);
+ const h=(2.5+0.4*p.wind)*(S.cover?0.3:1);
+ const loss=area*h*Math.max(0,S.temp-p.air)*0.9+area*h*Math.min(0,S.temp-p.air)*0.2;
+ const gain=S.firing?p.btu*EFF:0;
+ S.temp+=(gain-loss)*(dtMin/60)/(p.vol*8.34);
+ if(S.firing)S.gas+=p.btu*(dtMin/60)/100000;
+ S.t+=dtMin;
+}
+let last=performance.now(),acc=0;
+function loop(now){
+ const dt=Math.min(0.1,(now-last)/1000);last=now;
+ const spd=P().spd,simMin=dt*spd;
+ const n=Math.max(1,Math.ceil(simMin));for(let i=0;i<n;i++)step(simMin/n);
+ acc+=simMin;if(acc>=10){S.hist.push(S.temp);if(S.hist.length>288)S.hist.shift();acc=0}
+ render();requestAnimationFrame(loop);
+}
+function render(){
+ const p=P();
+ $('tPool').textContent=S.temp.toFixed(1);$('tSet').textContent=p.set;
+ $('svTemp').textContent=S.temp.toFixed(1)+'°F';
+ const st=S.lock?['NO FLOW','bad']:S.firing?['FIRING','fire']:S.heat?['STANDBY','']:['OFF',''];
+ $('status').innerHTML=`<span class="pill ${st[1]}">${st[0]}</span>`;
+ $('gas').textContent=S.gas.toFixed(0);$('cost').textContent='$'+(S.gas*PRICE).toFixed(0);
+ $('clock').textContent=(S.t/60).toFixed(1)+'h';
+ $('burner').setAttribute('opacity',S.firing?(0.6+0.4*Math.sin(performance.now()/90)):0);
+ $('plant').classList.toggle('paused',!(S.pump&&S.valve));
+ $('alarm').textContent=S.lock?'ALARM: Heater called for heat with no water flow. Heater locked out. Turn the pump on and open the valve.':(S.pump&&!S.valve?'Flow valve closed: no circulation.':'');
+ $('bPump').textContent='Pump: '+(S.pump?'ON':'OFF');$('bPump').className=S.pump?'on':'';
+ $('bHeat').textContent='Heater: '+(S.heat?'AUTO':'OFF');$('bHeat').className=S.heat?'on':'';
+ $('bCover').textContent='Cover: '+(S.cover?'ON':'OFF');$('bCover').className=S.cover?'on':'';
+ $('bValve').textContent='Flow valve: '+(S.valve?'OPEN':'CLOSED');$('bValve').className=S.valve?'on':'';
+ $('vSet').textContent=p.set+'°F';$('vAir').textContent=p.air+'°F';$('vWind').textContent=p.wind+' mph';
+ $('vBtu').textContent=(p.btu/1000)+'k';$('vVol').textContent=p.vol.toLocaleString();$('vSpd').textContent=p.spd;
+ chart(p.set);
+}
+function chart(set){
+ const c=$('chart'),g=c.getContext('2d'),W=c.width,H=c.height,cs=getComputedStyle(document.documentElement);
+ g.clearRect(0,0,W,H);const d=S.hist.concat([S.temp]);
+ const lo=Math.min(60,...d)-2,hi=Math.max(90,...d)+2,y=v=>H-(v-lo)/(hi-lo)*(H-10)-5;
+ g.strokeStyle=cs.getPropertyValue('--ln');g.setLineDash([4,4]);g.beginPath();g.moveTo(0,y(set));g.lineTo(W,y(set));g.stroke();g.setLineDash([]);
+ g.strokeStyle=cs.getPropertyValue('--water').trim()||'#2b8fd6';g.lineWidth=2.5;g.beginPath();
+ d.forEach((v,i)=>{const x=i/Math.max(1,287)*W;i?g.lineTo(x,y(v)):g.moveTo(x,y(v))});g.stroke();
+ g.fillStyle=cs.getPropertyValue('--mut');g.font='12px sans-serif';g.fillText('Pool temp history (dashed = setpoint)',6,14);
+}
+$('bPump').onclick=()=>{S.pump=!S.pump};
+$('bHeat').onclick=()=>{S.heat=!S.heat;if(!S.heat)S.lock=false};
+$('bCover').onclick=()=>{S.cover=!S.cover};
+$('bValve').onclick=()=>{S.valve=!S.valve};
+$('bReset').onclick=()=>{S=JSON.parse(JSON.stringify(S0))};
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
