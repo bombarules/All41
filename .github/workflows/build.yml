@@ -44,9 +44,22 @@ jobs:
           distribution: temurin
           java-version: '17'
 
+      # Keeps the Gradle build tool and libraries between builds, so most builds
+      # don't need to download anything from gradle.org.
+      - name: Set up Gradle (with cache)
+        uses: gradle/actions/setup-gradle@v4
+
+      # gradle.org sometimes times out; try up to 3 times before giving up.
       - name: Build Park Universe APK
         working-directory: Orbit
-        run: chmod +x gradlew && ./gradlew assembleDebug
+        run: |
+          chmod +x gradlew
+          for attempt in 1 2 3; do
+            if ./gradlew assembleDebug --no-daemon; then exit 0; fi
+            echo "Build attempt $attempt failed - retrying in 20 seconds"
+            sleep 20
+          done
+          exit 1
 
       - name: Upload Park Universe APK
         uses: actions/upload-artifact@v4
