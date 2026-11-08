@@ -22,28 +22,29 @@ button{font:inherit;color:inherit;cursor:pointer;touch-action:manipulation}
 .rcol{display:flex;flex-direction:column;gap:8px}
 .rbtn[aria-pressed=true]{background:var(--acc);color:#04241a;border-color:transparent}
 /* dock */
-.dock{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(12px + env(safe-area-inset-bottom,0px));display:flex;gap:4px;padding:6px;border-radius:22px;z-index:5;max-width:calc(100% - 20px)}
-.dock button{display:flex;flex-direction:column;align-items:center;gap:2px;min-width:62px;white-space:nowrap;padding:7px 8px;border:0;border-radius:16px;background:none;font-size:11.5px;font-weight:700;color:var(--mut)}
+.dock{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(12px + env(safe-area-inset-bottom,0px));display:flex;gap:4px;padding:6px;border-radius:22px;z-index:5;width:min(440px,calc(100% - 16px));box-sizing:border-box;justify-content:space-between}
+.dock button{display:flex;flex-direction:column;align-items:center;gap:2px;min-width:0;flex:1 1 0;white-space:nowrap;padding:6px 2px;border:0;border-radius:16px;background:none;font-size:11.5px;font-weight:700;color:var(--mut)}
 .dock button i{font-style:normal;font-size:21px;line-height:1;color:var(--ink)}
 .dock button:active,.dock button.on{background:rgba(255,255,255,.1);color:var(--ink)}
 .dock .fly i{color:var(--acc2)}
 /* place card */
-.card{position:fixed;left:10px;right:10px;bottom:calc(84px + env(safe-area-inset-bottom,0px));border-radius:20px;padding:14px 14px 12px;z-index:6;max-width:520px;margin:0 auto;max-height:52vh;overflow:auto}
-.card h2{margin:0 34px 2px 0;font-size:20px;line-height:1.2}
-.cat{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--mut)}
+.card{position:fixed;left:8px;right:8px;bottom:calc(var(--dockH,84px) + 6px);border-radius:18px;padding:11px 12px 9px;z-index:6;max-width:520px;margin:0 auto;max-height:calc(100% - var(--dockH,84px) - 90px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px));overflow:auto;overscroll-behavior:contain}
+.card h2{margin:0 36px 0 0;font-size:18px;line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cat{display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--mut)}
 .dot{width:10px;height:10px;border-radius:50%;background:var(--c);flex:none;box-shadow:0 0 0 2px rgba(255,255,255,.7)}
-.addr{margin:8px 0 6px;font-size:14px}
-.am{display:flex;flex-wrap:wrap;gap:5px;margin:0 0 10px}.am span{background:rgba(255,255,255,.08);border:1px solid var(--line);border-radius:8px;padding:1px 8px;font-size:12.5px}
-.x{position:absolute;right:10px;top:10px;width:32px;height:32px;border-radius:10px;border:1px solid var(--line);background:rgba(255,255,255,.06);font-size:16px}
+.addr{margin:3px 0 6px;font-size:12.5px;color:var(--mut);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.am{display:flex;flex-wrap:nowrap;gap:5px;margin:0 0 8px;overflow-x:auto;scrollbar-width:none}.am::-webkit-scrollbar{display:none}.am span{flex:none;background:rgba(255,255,255,.08);border:1px solid var(--line);border-radius:8px;padding:1px 7px;font-size:11.5px;white-space:nowrap}
+.x{position:absolute;right:8px;top:8px;width:30px;height:30px;border-radius:10px;border:1px solid var(--line);background:rgba(255,255,255,.06);font-size:15px}
 .btns{display:flex;gap:6px;flex-wrap:wrap}
-.btns a,.btns button{flex:1 1 0;min-width:0;text-align:center;padding:9px 6px;border-radius:12px;text-decoration:none;font-weight:700;font-size:13px;border:1px solid var(--line);color:var(--ink);background:rgba(255,255,255,.06);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.btns a,.btns button{flex:1 1 0;min-width:0;text-align:center;padding:7px 3px;letter-spacing:-.1px;border-radius:12px;text-decoration:none;font-weight:700;font-size:12.5px;border:1px solid var(--line);color:var(--ink);background:rgba(255,255,255,.06);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .btns .p{background:linear-gradient(135deg,#34d399,#22d3ee);color:#03221a;border-color:transparent}
-.btns .ic{flex:0 0 42px}
+.btns .ic{flex:0 0 34px;padding-left:0;padding-right:0}
 .btns .fv[aria-pressed=true]{color:var(--acc2);border-color:var(--acc2)}
-.lytabs{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:8px}
-.lytabs button{display:flex;align-items:center;justify-content:center;gap:5px;padding:9px 4px;border-radius:12px;border:1px solid var(--line);background:rgba(255,255,255,.06);font-weight:700;font-size:12.5px;white-space:nowrap;overflow:hidden}
-.lytabs i{font-style:normal}.placing .ly-bar{display:none!important}
-.src{font-size:11.5px;color:var(--mut);margin:8px 0 0}
+@media (max-width:340px){.btns a,.btns button{font-size:11.5px}.dock button{font-size:10.5px}.dock button i{font-size:18px}.lytabs button{font-size:9px}.card h2{font-size:16.5px}}
+.lytabs{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:4px;margin-top:7px}
+.lytabs button{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding:6px 1px 5px;border-radius:11px;border:1px solid var(--line);background:rgba(255,255,255,.06);font-weight:700;font-size:10px;line-height:1.1;white-space:nowrap;overflow:hidden;min-width:0}
+.lytabs i{font-style:normal;font-size:17px;line-height:1.1}.lytabs span{max-width:100%;overflow:hidden;text-overflow:ellipsis}.lytabs b{position:absolute;top:2px;right:3px;min-width:15px;height:15px;padding:0 4px;border-radius:8px;background:#22d3ee;color:#03221a;font-size:9.5px;line-height:15px;text-align:center}.lytabs b.z{display:none}.placing .ly-bar{display:none!important}
+.src{font-size:10.5px;color:var(--mut);margin:6px 0 0}
 /* sheet: places list */
 .sheet{position:fixed;left:0;right:0;bottom:0;height:68vh;border-radius:22px 22px 0 0;z-index:8;display:flex;flex-direction:column;padding-bottom:env(safe-area-inset-bottom,0px);max-width:640px;margin:0 auto}
 .sh{padding:12px 14px 8px;display:flex;flex-direction:column;gap:9px;border-bottom:1px solid var(--line)}
@@ -180,7 +181,7 @@ button{font:inherit;color:inherit;cursor:pointer;touch-action:manipulation}
 <div class="scrim" id="scrim" hidden></div>
 <div class="sheet glass" id="sheet" hidden role="dialog" aria-label="Places">
   <div class="sh">
-    <div class="shrow"><h3 id="sheetT">Places</h3><button class="flyl" id="flyList">&#9992; Fly over these</button><button class="x" style="position:static" id="sheetX" aria-label="Close">&#10005;</button></div>
+    <div class="shrow"><h3 id="sheetT">Places</h3><button class="flyl" id="addProp" style="background:linear-gradient(135deg,#34d399,#22d3ee);color:#03221a">&#65291; Property</button><button class="flyl" id="flyList">&#9992; Fly</button><button class="x" style="position:static" id="sheetX" aria-label="Close">&#10005;</button></div>
     <input class="search" id="q" type="search" placeholder="Search parks and pools" autocomplete="off">
     <div class="chips" id="chips"></div>
   </div>
@@ -210,7 +211,7 @@ button{font:inherit;color:inherit;cursor:pointer;touch-action:manipulation}
 "use strict";
 /* ---------------- data ---------------- */
 var TOKEN="pk.eyJ1IjoiYm9tYmFydWxlcyIsImEiOiJjbXZvZzRjdTEwdG1qMnlxNDAxdWdqZ2U2In0.8u-9Ntnu7OCGUEVccIx6Qw";
-var CAT={large:["Large park","#34d399"],sports:["Sports field","#ffb454"],water:["Water feature","#38bdf8"],picnic:["Picnic","#ff7a6b"],small:["Small park","#a3e635"],dog:["Dog park","#c4a1ff"],amph:["Amphitheater","#fbbf24"],pool:["Pool","#22d3ee"]};
+var CAT={large:["Large park","#34d399"],sports:["Sports field","#ffb454"],water:["Water feature","#38bdf8"],picnic:["Picnic","#ff7a6b"],small:["Small park","#a3e635"],dog:["Dog park","#c4a1ff"],amph:["Amphitheater","#fbbf24"],pool:["Pool","#22d3ee"],facility:["Facility / building","#94a3b8"],other:["Other property","#cbd5e1"]};
 /* parks: [name, mapX, mapY, category, amenities, address, mca slug] */
 var P=[["Central Park", 250, 742, "large", "80 acres, Playground, Benches, Fountain, Walking paths", "8801 Martin Luther King Jr Blvd, Denver, CO 80238", "central-park"], ["Spectator Park", 340, 812, "large", "Pickleball courts, Multi-age fitness course, Playground", "2650 N Dallas Wy, Denver, CO 80238", "spectator-park"], ["Observation Point", 410, 202, "large", "Gas grill, Shade structure, Picnic tables, Play area", "5969 Hanover St, Denver, CO 80238", "observation-point"], ["Runway 35 Sport Field", 298, 692, "sports", "Sand volleyball, Basketball court, Playground, Picnic tables", "Yosemite St, Denver, CO 80238", "runway-35-small-park-sport-field"], ["F54 Sports Field & Park", 352, 234, "sports", "Sand volleyball, Basketball court, Playground, Picnic tables", "R42G+JG, Denver, CO 80238", "f54-sports-field"], ["Puddle Jumper West Field", 190, 852, "sports", "Sport field, Playground, Picnic tables, Grill", "2401 Xenia St, Denver, CO 80238", "puddle-jumper-west-field"], ["Jet Stream East Field", 385, 688, "sports", "Sport field, Playground", "E 36th Ave, Denver, CO 80238", "jet-stream-east-field"], ["F-15 East Field", 418, 792, "sports", "Sport field, Playground", "2802 Hanover St, Denver, CO 80220", "f15-east-field"], ["Aviator West Field", 144, 792, "sports", "Sport field", "8054 E 28th Ave, Denver, CO 80238", "aviator-west-field"], ["Aviator East Field", 154, 798, "sports", "Sport field, Playground, Benches", "8054 E 28th Ave, Denver, CO 80238", "aviator-east-field"], ["Central Park Pavilion", 267, 762, "water", "Outdoor water feature, Pavilion", "8801 Martin Luther King Jr Blvd, Denver, CO 80238", "central-park-pavilion"], ["Conservatory Green Plaza", 177, 443, "water", "Outdoor water feature, Fire pit, Tables", "8304 E 49th Pl, Denver, CO 80238", "conservatory-green-plaza"], ["Beeler Park & Plaza", 247, 261, "water", "Outdoor water feature, Tables, Benches, Dog bag dispenser", "9215 E 57th Pl, Denver, CO 80238", "beeler-park-plaza"], ["West Crescent", 40, 775, "water", "Outdoor water feature, Tables", "2923 Roslyn St, Denver, CO 80238", "west-crescent"], ["Buffalo Wallow", 118, 312, "water", "Outdoor water feature", "5545 Valentia Ct, Denver, CO 80238", "buffalo-wallow"], ["Conservatory Green & Amphitheater", 263, 484, "amph", "Amphitheater, Picnic tables, Benches, Dog bag dispenser", "8912 E 47th Ave, Denver, CO 80238", "conservatory-green-amphitheater"], ["Founders’ Green & Amphitheater", 82, 777, "amph", "Amphitheater, Benches", "7601 29th Ave, Denver, CO 80238", "founders-green-amphitheater"], ["Pizza Park", 261, 371, "picnic", "Outdoor pizza oven, Picnic tables, Umbrellas, Trash", "8900 E 52nd Pl, Denver, CO 80238", "pizza-park"], ["Willow Bark Dog Park", 230, 332, "dog", "Dog park", "54th Pl, Denver, CO 80238", "willow-bark-dog-park"], ["Mews 1", 141, 705, "small", "Benches", "8015 E 34th Ave, Denver, CO 80238", "mews-1"], ["Mews 2", 161, 705, "small", "Pergola, Benches, Dog bag dispenser, Trash", "8153 E 34th Ave, Denver, CO 80238", "mews-2"], ["Mews 3", 125, 705, "small", "Benches, Dog bag dispenser, Trash", "7904 E 34th Ave, Denver, CO 80238", "mews-3"], ["Mews 4", 168, 708, "small", "Picnic tables, Trash", "8194 E 34th Ave, Denver, CO 80238", "mews-4"], ["Mews 5", 141, 719, "small", "Benches", "8012 E 33rd Ave, Denver, CO 80238", "mews-5"], ["Mews 6", 160, 719, "small", "Pergola, Benches, Dog bag dispenser", "8144 E 33rd Ave, Denver, CO 80238", "mews-6"], ["Summer Park", 397, 748, "small", "Playground, Benches", "9807 E 31st Ave, Denver, CO 80238", "summer-park"], ["Autumn Park", 382, 734, "small", "Shade, Benches, Dog bag dispensers", "9701 E 32nd Ave, Denver, CO 80238", "autumn-park"], ["Winter Park", 383, 708, "small", "Benches", "9708 E 34th Pl, Denver, CO 80238", "winter-park"], ["Spring Park", 330, 748, "small", "Pergola, Benches", "3105 Elmira Ct, Denver, CO 80238", "spring-park"], ["Arc Park", 404, 792, "small", "Playground, Benches, Dog bag dispensers", "9858 E 28th Ave, Denver, CO 80220", "arc-park"], ["Square Park", 423, 790, "small", "Benches", "9989 E 28th Pl, Denver, CO 80238", "square-park"], ["Terra Park", 165, 791, "small", "Benches", "8187 E 28th Ave, Denver, CO 80238", "terra-park"], ["Measurement Park", 111, 790, "small", "Benches", "7807 E 28th Pl, Denver, CO 80238", "measurement-park"], ["35th Drive & Wabash Street Park", 224, 690, "small", "Playground, Benches", "8599 E 35th Pl, Denver, CO 80238", "35-drive-wabash-street-park"], ["Charleston A Park", 200, 706, "small", "Benches, Dog bag dispensers", "3405 Xanthia St, Denver, CO 80238", "charleston-a-park"], ["Charleston B Park", 265, 706, "small", "Benches, Dog bag dispenser", "E 34th Ave, Denver, CO 80238", "charleston-b-park"], ["Charleston C Park", 361, 702, "small", "Benches, Dog bag dispenser", "3420 Alton St, Denver, CO 80238", "charleston-c-park"], ["Arrowhead Park", 345, 690, "small", "Benches, Dog bag dispenser", "3495 Florence Way, Denver, CO 80238", "arrowhead-park"], ["Cherry Pie Park", 485, 799, "small", "Benches", "2754 Kenton Ct, Denver, CO 80238", "cherry-pie-park"], ["Rumble Park", 465, 795, "small", "Benches, Dog bag dispenser, Trash", "2790 Jamaica Way, Denver, CO 80238", "rumble-park"], ["Sail Park", 300, 805, "small", "Benches", "E 27th Ave, Denver, CO 80238", "sail-park"], ["Heritage Park", 230, 835, "small", "Benches", "E 25th Ave, Denver, CO 80238", "heritage-park"], ["Harvest Park", 95, 820, "small", "Community table, Playground", "Tamarac St, Denver, CO 80238", "harvest-park"], ["Constellation Park", 150, 915, "small", "Shade, Benches", "20th Pl, Denver, CO 80238", "constellation-park"], ["Bouquet Park", 120, 808, "small", "Benches", "11447 W 27th Ave, Denver, CO 80238", "bouquet-park"], ["Song Bird Park", 147, 850, "small", "Pergola, Benches, Trash", "8055 E 24th Ave, Denver, CO 80238", "song-bird-park"], ["24th Ave. Park", 361, 844, "small", "Pergolas, Benches", "2441 Alton Street, Denver, CO 80238", "24-ave-park"], ["Fred Thomas Park", 35, 865, "small", "Playground, Sport fields", "2400 Quebec St, Denver, CO 80207", "fred-thomas-park"], ["MLK Park", 69, 762, "small", "Benches", "7511 M.L.K. Jr Blvd, Denver, CO 80207", "mlk-park"], ["Aurora Park (Fulton St)", 455, 838, "small", "Playground, Benches", "2526 Fulton Street, Aurora, CO 80010", "26-fulton-park"], ["Aurora Park (Elmira St)", 420, 842, "small", "Playground, Picnic shelter", "2503 Elmira St, Aurora, CO 80010", "aurora-park"], ["Green Links", 142, 422, "small", "Benches, Community garden plots", "8052 E 50th Dr, Denver, CO 80238", "green-links"], ["Valencia Street Parkway", 122, 430, "small", "Benches", "5000 Valentia St, Denver, CO 80238", "valentia-street-parkway"], ["Spinning Spokes Parklet", 185, 408, "small", "Community garden plots", "5038 Yosemite St, Denver, CO 80238", "spinning-spokes-parklet"], ["Prairie Basin Park", 82, 385, "small", "Open space", "8198 E 51st Ave, Denver, CO 80238", "prairie-basin-park"], ["Boston Street Garden", 72, 395, "small", "Trail, Benches", "6270 E 52nd Ave, Denver, CO 80238", "boston-street-garden"], ["Wicker Park", 275, 385, "small", "Playground", "5190 Beeler Ct, Denver, CO 80239", "wicker-park"], ["Lilac Lane Passageway", 268, 360, "small", "Trellis", "8946 Beekman Pl, Denver, CO 80238", "lilac-lane-passageway"], ["Cottonwood Gallery", 190, 352, "small", "Playground, Benches", "5106 Verbena St, Denver, CO 80238", "cottonwood-gallery"], ["Quilted Garden Park", 165, 318, "small", "Playground, Benches", "5477 Willow St, Denver, CO 80238", "quilted-garden-park"], ["Prairie Meadows Park", 142, 335, "small", "Open space, Playground, Benches, Trash", "8300 E Prairie Meadow Dr, Denver, CO 80238", "prairie-meadows-park"], ["Sandhills Prairie Park", 205, 320, "small", "Greenspace", "8760 54th Pl, Denver, CO 80238", "sandhills-prairie-park"], ["Uplands Park", 142, 399, "small", "Benches", "5026 Steele St, Denver, CO 80216", "uplands-park"], ["Willow Basin Park", 90, 275, "small", "Greenspace, Access to trails", "5026 Steele St, Denver, CO 80216", "willow-basin-park"], ["Beeler Street Parkway", 247, 225, "small", "Trail, Benches", "9240 E 59th N Pl, Denver, CO 80239", "beeler-street-parkway"], ["Cottonwood Clearing Park", 243, 191, "small", "Benches", "9190 E 59th N Pl, Denver, CO 80238", "cottonwood-clearing-park"], ["Pea Pod Park", 288, 176, "small", "Benches, Dog bag dispenser, Trash", "9384 E 59th N Pl, Denver, CO 80239", "pea-pod-park"], ["59th Place Parkway", 278, 188, "small", "Trail, Climbing rocks, Balance logs", "5952 Boston Ct, Denver, CO 80238", "59-place-parkway"], ["Lifted Meadow Park", 278, 220, "small", "Dog bag dispenser, Trash", "5852 Boston Ct, Denver, CO 80238", "lifted-meadow-park"], ["Rolling Bluff Park", 278, 154, "small", "Benches, Play structures", "9390 E 61st Pl, Denver, CO 80238", "rolling-bluff-park"], ["Front Porch Park", 248, 122, "small", "Pergola, Picnic tables, Benches", "9006 62nd Ave, Denver, CO 80238", "front-porch-park"], ["North Prairie Basin", 250, 85, "small", "Open space", "6143-6101 Chester Wy, Denver, CO 80239", "north-prairie-basin"]];
 /* pools: [name, amenities, address, mca slug, park it sits next to] */
@@ -238,6 +239,7 @@ POOLS.forEach(function(q,k){
   var near=PL.filter(function(x){return x.n===q[4]})[0],base=near?near.ll:[-104.8895,39.7735];
   PL.push({n:q[0],cat:"pool",am:q[1],addr:q[2],mca:q[3],ll:[base[0]+.0014*Math.cos(k*1.7+.6),base[1]+.0010*Math.sin(k*1.7+.6)],src:0,pool:true});
 });
+var BASE=PL.length;
 var GEO=LS.get("geo2",{}),OVR=LS.get("pins_ll2",{}),FAV=LS.get("fav5",{});
 PL.forEach(function(p){if(!KML[p.n]&&GEO[p.n]){p.ll=GEO[p.n];p.src=1}if(OVR[p.n]){p.ll=OVR[p.n];p.src=2}});
 $("sub").textContent="Central Park \u00b7 "+PL.length+" places";
@@ -346,24 +348,27 @@ function showCard(i){var p=PL[i],c=catOf(p),q=p.addr||(p.n+", Central Park, Denv
   el.innerHTML='<button class="x" id="cX" aria-label="Close">&#10005;</button><h2></h2><span class="cat"><span class="dot" style="--c:'+c[1]+'"></span><span id="cC"></span></span>'+
    '<p class="addr" id="cA"></p><div class="am" id="cAm"></div><div class="btns">'+
    '<a class="p" target="_blank" rel="noopener" id="cDir">Directions</a><a target="_blank" rel="noopener" id="cMca">MCA page</a>'+
-   '<button class="ic fv" id="cFv" aria-label="Save place"></button><button class="ic" id="cSn" aria-label="Snow removal">&#10052;</button><button class="ic" id="cMv" aria-label="Move this pin">&#128205;</button></div><div class="lytabs" id="cTabs"></div><p class="src" id="cSrc"></p>';
+   '<button class="ic fv" id="cFv" aria-label="Save place"></button><button class="ic" id="cSn" aria-label="Snow removal">&#10052;</button><button class="ic" id="cMv" aria-label="Move this pin">&#128205;</button><button class="ic" id="cEd" aria-label="Edit this property" hidden>&#9998;</button></div><div class="lytabs" id="cTabs"></div><p class="src" id="cSrc"></p>';
   el.querySelector("h2").textContent=p.n;
   $("cC").textContent=c[0]+(EST[p.n]?" \u00b7 Est. "+EST[p.n]:"");
   $("cA").textContent=(p.addr||"").replace(/^R42G\+JG, /,"Plus code R42G+JG, ");
   p.am.split(", ").forEach(function(a){var s=document.createElement("span");s.textContent=a;$("cAm").appendChild(s)});
   $("cDir").href="https://www.google.com/maps/search/?api=1&query="+encodeURIComponent(q);
-  $("cMca").href="https://www.mca80238.com/facilities/"+p.mca;
+  $("cMca").href=/^https?:/.test(p.mca||"")?p.mca:"https://www.mca80238.com/facilities/"+p.mca;$("cMca").hidden=!p.mca;
   var fv=$("cFv");fv.textContent=FAV[p.n]?"\u2605":"\u2606";fv.setAttribute("aria-pressed",!!FAV[p.n]);
   fv.onclick=function(){if(FAV[p.n])delete FAV[p.n];else FAV[p.n]=1;LS.set("fav5",FAV);refresh();showCard(i);if(!$("sheet").hidden)drawList()};
   $("cSn").onclick=function(){if(window.PUAssets)PUAssets.openLayer("snow",p.n);else openSnow(i)};
   if(window.PUAssets){var tabs=$("cTabs");PUAssets.LAYERS.forEach(function(l){var b=document.createElement("button");b.id=l.id==="assets"?"cAs":"cTab_"+l.id;
-      b.innerHTML='<i>'+l.e+'</i><span></span>';b.querySelector("span").textContent=l.name+" ("+PUAssets.layerCount(p.n,l.id)+")";b.onclick=function(){PUAssets.openLayer(l.id,p.n)};tabs.appendChild(b)});
+      var cnt=PUAssets.layerCount(p.n,l.id);b.innerHTML='<i>'+l.e+'</i><span></span><b'+(cnt?'':' class="z"')+'></b>';b.querySelector("span").textContent=l.id==="irrigation"?"Water":l.name;b.querySelector("b").textContent=cnt;b.setAttribute("aria-label",l.name+", "+cnt);b.onclick=function(){PUAssets.openLayer(l.id,p.n)};tabs.appendChild(b)});
     var dl=document.createElement("button");dl.id="cDl";dl.innerHTML='<i>\u2b07</i><span>Map</span>';dl.onclick=function(){PUAssets.openExport(p.n)};tabs.appendChild(dl);
     var by=PUAssets.counts(p.n,"assets"),tot=Object.keys(by).length;
     if(tot){var sm=document.createElement("div");sm.className="am";Object.keys(by).forEach(function(k){var sp=document.createElement("span");sp.innerHTML='<img alt="" src="'+PUAssets.iconURL(k)+'" style="width:15px;height:15px;vertical-align:-3px"> '+by[k]+" "+PUAssets.T[k].name.toLowerCase();sm.appendChild(sp)});$("cSrc").parentNode.insertBefore(sm,$("cSrc"))}}$("cMv").onclick=function(){startMove(i)};$("cX").onclick=closeCard;
-  $("cSrc").textContent=p.src===2?"Pin: exact location":p.src===1?"Pin: from the street address":"Pin: approximate \u2014 tap \ud83d\udccd to place it exactly";
-  el.hidden=false;
+  if(p.custom){$("cEd").hidden=false;$("cEd").onclick=function(){propForm(p)}}
+  $("cSrc").textContent=p.custom?(p.geo==="approx"||p.geo==="todo"?"Pin: approximate \u2014 tap \ud83d\udccd to place it exactly":p.geo==="exact"?"Pin: exact location \u00b7 tap \u270e to edit":"Added property \u00b7 tap \u270e to edit"):p.src===2?"Pin: exact location":p.src===1?"Pin: from the street address":"Pin: approximate \u2014 tap \ud83d\udccd to place it exactly";
+  el.hidden=false;dockH();
 }
+function dockH(){var d=document.querySelector(".dock");if(d){var r=d.getBoundingClientRect();document.documentElement.style.setProperty("--dockH",Math.round(window.innerHeight-r.top)+"px")}}
+window.addEventListener("resize",dockH);setTimeout(dockH,50);
 function closeCard(){$("card").hidden=true;setSel(-1)}
 
 /* move a pin: tap the map where the place really is */
@@ -377,7 +382,8 @@ function moveMode(msg,cb,o){o=o||{};closeCard();if(tour)tourStop();moveCb=cb;mov
   pbInfo()}
 function pbInfo(){if(!map)return;var c=map.getCenter();$("pbInfo").textContent=(look==="sat"?"Satellite photo":"Street map")+" \u00b7 + is at "+c.lat.toFixed(6)+", "+c.lng.toFixed(6)}
 function finishPlace(ll){var cb=moveCb;endMove();if(cb&&ll)cb(ll)}
-function startMove(i){var p=PL[i];moveMode("Line up the + with "+p.n,function(ll){p.ll=ll;p.src=2;OVR[p.n]=p.ll;LS.set("pins_ll2",OVR);refresh();toast(p.n+" moved. Saved on this phone.");pick(i,{from:"map"})},{center:p.ll,zoom:18.2})}
+function startMove(i){var p=PL[i];moveMode("Line up the + with "+p.n,function(ll){if(p.custom){PUAssets.saveProperty({id:p.custom,ll:ll,geo:"exact"}).then(function(){toast(p.n+" moved.");var j=PL.map(function(x){return x.custom}).indexOf(p.custom);if(j>=0)pick(j,{from:"map"})});return}
+  p.ll=ll;p.src=2;OVR[p.n]=p.ll;LS.set("pins_ll2",OVR);refresh();toast(p.n+" moved. Saved on this phone.");pick(i,{from:"map"})},{center:p.ll,zoom:18.2})}
 function endMove(){moving=-1;moveCb=null;$("moving").hidden=true;$("xhair").hidden=true;$("placebar").hidden=true;document.body.classList.remove("placing");if(window.PUAssets&&PUAssets.focus()&&map)map.easeTo({pitch:0,duration:600});
   if(prevLook){look=prevLook;prevLook=null;sat=look==="sat";if(map)map.setStyle(styleFor())}}
 $("movX").onclick=function(){endMove()};
@@ -503,6 +509,58 @@ function closeAll(){closeMenu();closeSheet();closeApps();$("snow").hidden=true;w
 window.bombaHome=function(){closeAll();endMove();if(tour)tourStop();closeCard();map&&map.flyTo(Object.assign({},HOME,{duration:1800,essential:true}))};
 document.addEventListener("keydown",function(e){if(e.key==="Escape"){if(tour)tourStop();else closeAll()}});
 setInterval(function(){if(map&&look==="real"&&light==="auto"&&map.isStyleLoaded())try{map.setConfigProperty("basemap","lightPreset",preset());window.PU3D&&PU3D.setLight(preset())}catch(e){}},300000);
+function mergePlaces(){if(!window.PUAssets)return;var selId=sel>=BASE&&PL[sel]?PL[sel].custom:null;PL.length=BASE;
+  PUAssets.places().filter(function(a){return a.lng!=null}).sort(function(a,b){return (a.created||0)-(b.created||0)}).forEach(function(a){var pr=a.props||{},c=CAT[pr.cat]?pr.cat:"other";
+    PL.push({n:a.label||"New property",cat:c,am:pr.am||"",addr:pr.addr||"",mca:pr.mca||"",ll:[a.lng,a.lat],src:2,pool:c==="pool",custom:a.id,geo:pr.geo||""})});
+  $("sub").textContent="Central Park \u00b7 "+PL.length+" places";refresh();if(!$("sheet").hidden)drawList();
+  if(selId){var j=PL.map(function(x){return x.custom}).indexOf(selId);if(j<0)closeCard();else{sel=j;if(!$("card").hidden)showCard(j)}}else if(sel>=PL.length)closeCard()}
+function uniqueName(n,except){n=String(n||"").trim();return !PL.some(function(p){return p.n.toLowerCase()===n.toLowerCase()&&p.custom!==except})}
+/* add / edit a property */
+function propForm(p){closeAll();closeCard();var editing=!!(p&&p.custom),d=document.getElementById("propSheet");
+  if(!d){d=document.createElement("div");d.id="propSheet";d.className="as-sheet glass";d.setAttribute("role","dialog");document.body.appendChild(d)}
+  var cats=Object.keys(CAT);
+  d.innerHTML='<div class="hd2"><h3>'+(editing?"Edit property":"Add a property")+'</h3><button class="x" style="position:static" id="ppX" aria-label="Close">&#10005;</button></div><div class="as-body">'+
+   '<div class="as-f"><label for="ppName">Name</label><input id="ppName" maxlength="60" placeholder="e.g. Northfield Pocket Park"></div>'+
+   '<div class="as-f"><label for="ppCat">Type</label><select id="ppCat">'+cats.map(function(k){return '<option value="'+k+'">'+CAT[k][0]+'</option>'}).join("")+'</select></div>'+
+   '<div class="as-f"><label for="ppAddr">Address</label><input id="ppAddr" placeholder="1234 Main St, Denver, CO 80238"></div>'+
+   '<div class="as-f"><label for="ppAm">Amenities (comma separated)</label><input id="ppAm" placeholder="Benches, Playground, Trash"></div>'+
+   '<div class="as-f"><label for="ppMca">MCA page (optional)</label><input id="ppMca" placeholder="link or page name"></div>'+
+   '<div class="sy-err" id="ppErr" hidden style="color:#ff8a80;font-size:13px"></div>'+
+   '<div class="as-act">'+(editing?'<button class="p" id="ppSave">Save</button><button id="ppMove">&#128205; Move pin</button><button class="d" id="ppDel">Delete</button>':'<button class="p" id="ppGps">&#128205; Use my GPS here</button><button class="p" id="ppMap">Place on satellite map</button>')+'</div>'+
+   '<p class="src">'+(editing?"Changes sync to your team when you\u2019re signed in.":"Stand at the property and use GPS, or line up the + on the satellite map.")+'</p></div>';
+  $("ppName").value=editing?p.n:"";$("ppCat").value=editing?p.cat:"small";$("ppAddr").value=editing?p.addr:"";$("ppAm").value=editing?p.am:"";$("ppMca").value=editing?p.mca:"";
+  $("scrim").hidden=false;d.hidden=false;$("ppX").onclick=function(){d.hidden=true;$("scrim").hidden=true};
+  function vals(){var n=$("ppName").value.trim();if(!n){perr("Give the property a name.");return null}if(!uniqueName(n,editing?p.custom:null)){perr("There\u2019s already a place called "+n+".");return null}
+    var m=$("ppMca").value.trim();m=m.replace(/^https?:\/\/(www\.)?mca80238\.com\/facilities\//i,"");return{name:n,cat:$("ppCat").value,addr:$("ppAddr").value,am:$("ppAm").value,mca:m}}
+  function perr(t){$("ppErr").textContent=t;$("ppErr").hidden=!t}
+  function done(a){d.hidden=true;$("scrim").hidden=true;var j=PL.map(function(x){return x.custom}).indexOf(a.id);toast((editing?"Saved ":"Added ")+a.label+".");if(j>=0)pick(j)}
+  if(editing){
+    $("ppSave").onclick=function(){var v=vals();if(!v)return;v.id=p.custom;PUAssets.saveProperty(v).then(done,function(e){perr(e.message)})};
+    $("ppMove").onclick=function(){var v=vals();if(!v)return;v.id=p.custom;PUAssets.saveProperty(v).then(function(){d.hidden=true;$("scrim").hidden=true;var j=PL.map(function(x){return x.custom}).indexOf(p.custom);if(j>=0)startMove(j)})};
+    $("ppDel").onclick=function(){if(!confirm("Delete "+p.n+"? Its assets stay, filed under this name."))return;PUAssets.deleteProperty(p.custom).then(function(){d.hidden=true;$("scrim").hidden=true;toast("Deleted "+p.n+".")})};
+  }else{
+    $("ppGps").onclick=function(){var v=vals();if(!v)return;var m=PUAssets.me&&PUAssets.me();
+      if(!m||m.acc>50){PUAssets.startGPS&&PUAssets.startGPS();perr(m?"GPS is still rough (\u00b1"+Math.round(m.acc)+" m). Wait a moment and tap again, or place it on the map.":"Finding your GPS\u2026 tap again in a moment.");return}
+      v.ll=[m.lng,m.lat];v.acc=m.acc;PUAssets.saveProperty(v).then(done,function(e){perr(e.message)})};
+    $("ppMap").onclick=function(){var v=vals();if(!v)return;d.hidden=true;$("scrim").hidden=true;var m=PUAssets.me&&PUAssets.me();
+      moveMode("Line up the + with "+v.name,function(ll){v.ll=ll;PUAssets.saveProperty(v).then(done,function(e){toast(e.message)})},{center:m?[m.lng,m.lat]:(map?[map.getCenter().lng,map.getCenter().lat]:HOME.center),zoom:18})};
+  }}
+$("addProp").onclick=function(){if(window.PUAssets&&PUAssets.readOnly&&PUAssets.readOnly()){toast("View only \u2014 ask an admin for editor access.");return}propForm(null)};
+/* properties added after the original 79 (fixed ids so they appear once on every phone) */
+var SEED=[
+ {id:"seed-west-baseball",name:"West Baseball Field",cat:"sports",am:"Baseball field",addr:"2500 Dayton St, Aurora, CO 80010",ll:[-104.8748157,39.7531056],geo:"exact"},
+ {id:"seed-east-baseball",name:"East Baseball Field",cat:"sports",am:"Baseball field",addr:"9901 E 25th Ave, Aurora, CO 80010",ll:[-104.8698,39.7532],geo:"todo"},
+ {id:"seed-burnett-baseball",name:"Burnett Baseball Field",cat:"sports",am:"Baseball field",addr:"Near N Dallas St & E 59th Pl, Denver, CO 80238",ll:[-104.8740027,39.8027833],geo:"exact"},
+ {id:"seed-the-cube",name:"The Cube",cat:"facility",am:"Community event center, MCA meetings",addr:"8371 E Northfield Blvd, Denver, CO 80238",ll:[-104.8868,39.7881],geo:"todo"},
+ {id:"seed-mca-office",name:"MCA Office",cat:"facility",am:"MCA administrative offices",addr:"8351 E Northfield Blvd, Denver, CO 80238",ll:[-104.8872,39.7881],geo:"todo"}];
+function seedPlaces(){if(!window.PUAssets||!PUAssets.saveProperty||(PUAssets.readOnly&&PUAssets.readOnly()))return Promise.resolve();var done=LS.get("pu-seeded",{}),have={};
+  PUAssets.places().forEach(function(a){have[a.id]=1});var q=Promise.resolve();
+  SEED.forEach(function(x,k){if(done[x.id]||have[x.id])return;q=q.then(function(){return PUAssets.saveProperty({id:x.id,name:x.name,cat:x.cat,am:x.am,addr:x.addr,ll:x.ll,geo:x.geo||"approx",created:1762000000000+k}).then(function(){done[x.id]=1;LS.set("pu-seeded",done)},function(){})})});
+  return q.then(geoPlaces)}
+function geoPlaces(){if(!window.fetch||!window.PUAssets)return;PUAssets.places().filter(function(a){return a.props&&a.props.geo==="todo"&&/^\d/.test(a.props.addr||"")}).forEach(function(a){
+  fetch("https://api.mapbox.com/search/geocode/v6/forward?q="+encodeURIComponent(a.props.addr)+"&proximity=-104.889,39.770&bbox=-104.93,39.74,-104.84,39.83&country=us&limit=1&access_token="+TOKEN)
+   .then(function(r){return r.json()}).then(function(j){var f=j.features&&j.features[0];if(!f||!f.geometry)return;var c=f.geometry.coordinates;if(dkm(c,[a.lng,a.lat])>3)return;PUAssets.saveProperty({id:a.id,ll:c,geo:"address"})}).catch(function(){})})}
+document.addEventListener("DOMContentLoaded",function(){if(window.PUAssets){PUAssets.onPlaces(mergePlaces);if(PUAssets.ready)PUAssets.ready.then(function(){mergePlaces();return seedPlaces()})}});
 window.__pu={PL:PL,pick:pick,tourStart:tourStart,tour:function(){return tour},route:route,shown:shown};
 var namesOn=true;function setNames(on){namesOn=on;if(!map)return;["pu-label","pu-sel-label","pu-dot","pu-glow"].forEach(function(id){if(map.getLayer(id))map.setLayoutProperty(id,"visibility",on?"visible":"none")})}
 function setTempLook(l){if(look===l)return;if(!prevLook)prevLook=look;look=l;sat=look==="sat";if(map)map.setStyle(styleFor())}

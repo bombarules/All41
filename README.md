@@ -90,3 +90,11 @@ Menu ⋮ → **Team sync**.
   tap "Set new password". Owners use "Owner setup or new password" with the setup code to reset their own.
 - Server pieces: tables `profiles`, `items`, `photos`; private storage bucket `pu-photos`; edge function `pu-admin`.
   Row-level security enforces the roles on the server.
+
+## Properties (v2.1)
+84 places: the original 79 plus West Baseball Field (2500 Dayton St, Aurora — exact GPS), East Baseball Field
+(9901 E 25th Ave, Aurora), Burnett Baseball Field (exact GPS), The Cube (8371 E Northfield Blvd) and
+MCA Office (8351 E Northfield Blvd). East field, The Cube and MCA Office find their exact spot from the address the
+first time the app is online. To add more: Places → ＋ Property (name, type, address, amenities, optional MCA page),
+then use GPS or line up the + on the satellite map. Edit or delete with ✎ on the property's card.
+Added properties sync to the whole team.

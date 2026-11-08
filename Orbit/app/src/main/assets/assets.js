@@ -69,11 +69,13 @@
     ["entrance", "Entrance gate", "snow", "point", "#IN", "#16a34a"], ["exitgate", "Exit gate", "snow", "point", "#OUT", "#dc2626"],
     ["steps", "Steps / stairs", "snow", "point", "#ST", "#78716c"], ["icemelt", "Ice melt spot", "snow", "point", "\ud83e\uddc2", "#94a3b8"],
     ["shovel", "Other shovel spot", "snow", "point", "\u2744\ufe0f", "#0284c7"],
+    ["property", "Property", "places", "point", "\ud83d\udccd", "#22d3ee"],
     ["parking", "Parking lot", "snow", "polygon", "@poly", "#64748b"], ["storage", "Snow storage area", "snow", "polygon", "@poly", "#93c5fd"], ["noplow", "Do-not-plow area", "snow", "polygon", "@poly", "#ef4444"]];
   var T = {}; TYPES.forEach(function (t) { T[t[0]] = { id: t[0], name: t[1], layer: t[2], geom: t[3], e: t[4], c: t[5] }; });
   var FIELD_NAMES = ["West field", "Burnett field", "East field", "Practice field", "Batting cages"];
   var LINE_W = { lateral: 2.5, mainline: 4.5, route: 5, walk: 3.5 }, DASH = { walk: 1, route: 0 };
   function tOf(a) { return T[a.type] || T.other; }
+  function isPlace(a) { return a.type === "property"; }
   function layerOf(a) { return (T[a.type] || T.other).layer; }
   function condList(a) { return COND_BY[layerOf(a)] || COND_BY.assets; }
   function isBad(a) { var l = condList(a), i = l.indexOf(a.cond); return i >= 2; }
@@ -166,7 +168,7 @@
 
   /* ---------------- map layers ---------------- */
   var selId = null;
-  function pointGJ() { return { type: "FeatureCollection", features: ASSETS.filter(function (a) { return a.lng != null && tOf(a).geom === "point"; }).map(function (a) {
+  function pointGJ() { return { type: "FeatureCollection", features: ASSETS.filter(function (a) { return a.lng != null && tOf(a).geom === "point" && !isPlace(a); }).map(function (a) {
     var p = a.props || {}, si = a.type === "head" ? Math.max(0, SIZES.indexOf(p.size || SIZES[0])) : -1;
     return { type: "Feature", geometry: { type: "Point", coordinates: [a.lng, a.lat] }, properties: { id: a.id, type: T[a.type] ? a.type : "other", layer: layerOf(a), bad: isBad(a) ? 1 : 0,
       sz: si >= 0 ? SIZE_R[si] : (layerOf(a) === "irrigation" ? .8 : 1), throwm: a.type === "head" && +p.throw > 0 ? +p.throw * .3048 : 0 } }; }) }; }
@@ -244,6 +246,18 @@
     if (window.PU3D && PU3D.setNoTreeZones) PU3D.setNoTreeZones(ASSETS.filter(function (a) { return (a.type === "ballfield" || a.type === "cage") && a.coords && a.coords.length > 2; }).map(function (a) { return a.coords; }));
     if (!$("asList").hidden) drawList();
     if (focusLayer) drawLayerBar();
+    placeCbs.forEach(function (f) { try { f(); } catch (e) {} });
+  }
+  var placeCbs = [];
+  function saveProperty(o) {
+    if (RO) { PU.toast("View only \u2014 ask an admin for editor access."); return Promise.reject(new Error("view only")); }
+    var a = o.id ? byId(o.id) : null;
+    if (!a) a = { id: o.id || uid(), type: "property", created: o.created || Date.now(), photoCount: 0, cond: "Good", notes: "", props: {} };
+    if (o.name != null) a.label = String(o.name).trim().slice(0, 60);
+    ["cat", "am", "addr", "mca", "geo"].forEach(function (k) { if (o[k] != null) a.props[k] = String(o[k]).trim(); });
+    if (o.ll) { a.lng = +(+o.ll[0]).toFixed(7); a.lat = +(+o.ll[1]).toFixed(7); a.acc = o.acc == null ? null : o.acc; }
+    a.park = a.label;
+    return saveAsset(a).then(function () { return a; });
   }
   function setSel(id) { selId = id; var map = PU.map(); if (map && map.getLayer("as-sel")) { map.setFilter("as-sel", ["all", lf(), ["==", ["get", "id"], id || ""]]); map.getSource("as-v").setData(vertsGJ()); } }
 
@@ -356,7 +370,7 @@
 
   /* --- list --- */
   var listCtx = {}, fType = "all";
-  function inCtx(a) { return (!listCtx.park || a.park === listCtx.park) && (!listCtx.layer || layerOf(a) === listCtx.layer); }
+  function inCtx(a) { return !isPlace(a) && (!listCtx.park || a.park === listCtx.park) && (!listCtx.layer || layerOf(a) === listCtx.layer); }
   function openList(ctx) { if (PU.closeAll && !focusLayer) PU.closeAll(); listCtx = ctx || {}; listCtx.fromList = true; fType = listCtx.type || "all"; $("asQ").value = ""; showSheet("asList"); drawList(); }
   function drawList() {
     var chips = $("asChips"); chips.innerHTML = "";
@@ -725,8 +739,10 @@
 
   window.PUAssets = { TYPES: TYPES, T: T, LAYERS: LAYERS, addLayers: addLayers, openList: openList, startAdd: startAdd, openAsset: openAsset, locateMe: locateMe, counts: counts, layerCount: layerCount, iconURL: iconURL,
     openLayer: openLayer, closeLayer: closeLayer, openLayersPanel: openLayersPanel, openExport: openExport, startDraw: startDraw, vis: function () { return VIS; }, focus: function () { return focusLayer; },
-    close: function () { closeAll(); if (draw) endDraw(); }, ready: ready, me: function () { return me; }, startGPS: function () { return startGPS(); }, list: function () { return ASSETS; },
-    layerErrors: function () { return LAYER_ERR.slice(); }, setReadOnly: setRO, readOnly: function () { return RO; },
+    close: function () { closeAll(); if (draw) endDraw(); }, ready: ready, me: function () { return me; }, startGPS: function () { return startGPS(); }, list: function () { return ASSETS.filter(function (a) { return !isPlace(a); }); },
+    layerErrors: function () { return LAYER_ERR.slice(); },
+    places: function () { return ASSETS.filter(isPlace); }, saveProperty: saveProperty, deleteProperty: function (id) { var a = byId(id); return a ? delAsset(a) : Promise.resolve(); },
+    onPlaces: function (f) { placeCbs.push(f); }, setReadOnly: setRO, readOnly: function () { return RO; },
     onChange: function (f) { hooks.push(f); },
     _sync: { all: function () { return ASSETS.slice(); }, layerOf: layerOf,
       markClean: function (id, stamp) { var a = byId(id); if (a && a.updated === stamp) { a.dirty = false; a.synced = true; return saveAsset(a, true); } return Promise.resolve(); },

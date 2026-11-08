@@ -80,6 +80,9 @@ public class MainActivity extends Activity {
         settings.setLoadWithOverviewMode(true);
         settings.setMediaPlaybackRequiresUserGesture(false);
         settings.setGeolocationEnabled(true);
+        // Follow the phone's larger text setting, but cap it so screens still fit.
+        int zoom = Math.round(getResources().getConfiguration().fontScale * 100f);
+        settings.setTextZoom(Math.max(85, Math.min(zoom, 115)));
         web.setWebViewClient(new AppClient());
         web.addJavascriptInterface(new Bridge(), "BombaNative");
         // Bridges the built-in apps were written for: PoolCommand and VoluntTold.
