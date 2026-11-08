@@ -1,0 +1,55 @@
+name: All41 - unpack and build Orbit
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      # Upload All41.zip from your phone and this step unpacks it into
+      # normal files in the repo (and removes the zip), so every file can
+      # be edited on GitHub afterwards.
+      - name: Unpack uploaded zip (if any)
+        run: |
+          shopt -s nullglob
+          zips=(*.zip)
+          if [ ${#zips[@]} -eq 0 ]; then echo "No zip to unpack"; exit 0; fi
+          for z in "${zips[@]}"; do
+            tmp=$(mktemp -d)
+            unzip -q -o "$z" -d "$tmp"
+            src="$tmp"
+            if [ "$(ls -A "$tmp" | wc -l)" -eq 1 ] && [ -d "$tmp/All41" ]; then src="$tmp/All41"; fi
+            rm -rf "$src/.github"        # workflow file is managed separately
+            cp -a "$src"/. .
+            git rm -q --cached "$z" 2>/dev/null || true
+            rm -f "$z"
+          done
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git add -A
+          if git commit -m "Unpack uploaded zip"; then git push origin HEAD:"${GITHUB_REF_NAME:-main}"; else echo "Nothing new to commit"; fi
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Build Orbit APK
+        working-directory: Orbit
+        run: chmod +x gradlew && ./gradlew assembleDebug
+
+      - name: Upload Orbit APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Orbit-apk
+          path: Orbit/app/build/outputs/apk/debug/app-debug.apk
