@@ -497,6 +497,8 @@ let lastMin=new Date().getMinutes();
 setInterval(()=>{const m=new Date().getMinutes();if(m!==lastMin){lastMin=m;if(tab==="board"&&!sheetKind)render()}},5000);
 
 render();
+/* Park Universe link: apps/pool-command.html#pool=<id> opens that pool's sheet */
+(function(){const m=/^#pool=([\w-]+)/.exec(location.hash||"");if(m&&pool(m[1])){openSheet("pool",m[1]);try{history.replaceState(null,"",location.pathname+location.search)}catch(e){}}})();
 })();
 </script>
 </body>

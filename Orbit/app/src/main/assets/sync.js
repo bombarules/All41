@@ -248,6 +248,7 @@
     sb.from("profiles").select("*").order("role").order("email").then(function (r) {
       var box = $("syUsers"); if (!box) return; if (r.error) { box.innerHTML = '<div class="sy-err">' + esc(r.error.message) + "</div>"; return; }
       box.innerHTML = "";
+      shareRoster(r.data || []);
       (r.data || []).forEach(function (u) { var d = document.createElement("div"); d.className = "sy-user"; var meRow = session && u.id === session.user.id;
         d.innerHTML = '<div><b></b><small></small></div><select aria-label="Role"><option value="admin">Admin</option><option value="editor">Editor</option><option value="viewer">Viewer</option><option value="pending">Pending</option></select>' +
           (meRow ? "" : '<div class="ub"><button class="pw">Reset password</button><button class="rm">Remove</button></div>');
@@ -264,6 +265,14 @@
         }
         box.appendChild(d); });
     });
+  }
+  /* the team's names (no emails) saved as a synced record, so anyone can pick who a task is for */
+  function shareRoster(users) {
+    var s = window.PUAssets; if (!s || !s.byId || role() !== "admin") return;
+    var names = users.filter(function (u) { return u.role === "admin" || u.role === "editor"; }).map(function (u) { return (u.name || String(u.email || "").split("@")[0]).trim(); }).filter(Boolean).sort();
+    var a = s.byId("roster") || { id: "roster", type: "roster", created: Date.now(), photoCount: 0, park: "", label: "Team", notes: "", props: {} };
+    if (JSON.stringify((a.props || {}).names || []) === JSON.stringify(names)) return;
+    a.props = { names: names }; s.save(a).catch(function () {});
   }
   function addPerson() {
     var name = $("syNName").value, email = $("syNEmail").value, pw = $("syNPw").value, r = $("syNRole").value;
@@ -285,6 +294,7 @@
     setInterval(function () { if (session && !document.hidden) syncNow(); else emit(); }, 60000);
   }
   window.PUSync = { open: open, syncNow: syncNow, status: statusText, onStatus: function (f) { statusCbs.push(f); }, download: download, role: role, backup: backup, restoreFile: restoreFile,
-    signIn: function (e, p) { return signIn(e, p); }, signOut: signOut, _state: function () { return { session: !!session, profile: profile, busy: busy, lastErr: lastErr }; }, _client: function () { return sb; } };
+    signIn: function (e, p) { return signIn(e, p); }, signOut: signOut, signedIn: function () { return !!session; },
+    who: function () { return profile && profile.name ? profile.name : session && session.user && session.user.email ? session.user.email.split("@")[0] : ""; }, _state: function () { return { session: !!session, profile: profile, busy: busy, lastErr: lastErr }; }, _client: function () { return sb; } };
   if (window.PUAssets && PUAssets.ready) PUAssets.ready.then(start); else start();
 })();

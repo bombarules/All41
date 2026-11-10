@@ -21,7 +21,8 @@
     trees: ["Good", "Fair", "Poor", "Dead"],
     irrigation: ["Working", "Needs repair", "Leaking", "Off"],
     fields: ["Good", "Worn", "Needs replacing", "Missing"],
-    snow: ["Active", "Seasonal", "Needs review", "Retired"] };
+    snow: ["Active", "Seasonal", "Needs review", "Retired"],
+    work: ["Open", "In progress", "Done"] };
   var COND_COL = ["#22c55e", "#eab308", "#f97316", "#ef4444"];
   var SIZES = ['Spray 4"', 'Spray 6"', 'Spray 12"', "Rotor \u2013 small", "Rotor \u2013 medium", "Rotor \u2013 large", "Impact", "Bubbler", "Drip emitter"];
   var SIZE_R = [.55, .62, .7, .78, .88, 1, .95, .55, .45];
@@ -70,12 +71,16 @@
     ["steps", "Steps / stairs", "snow", "point", "#ST", "#78716c"], ["icemelt", "Ice melt spot", "snow", "point", "\ud83e\uddc2", "#94a3b8"],
     ["shovel", "Other shovel spot", "snow", "point", "\u2744\ufe0f", "#0284c7"],
     ["property", "Property", "places", "point", "\ud83d\udccd", "#22d3ee"], ["parkfix", "Park pin", "places", "point", "\ud83d\udccd", "#22d3ee"],
+    ["task", "Task", "work", "record", "\ud83d\udd27", "#f97316"], ["run", "Storm or checklist", "work", "record", "\u2611\ufe0f", "#0ea5e9"],
+    ["tick", "Check-off", "work", "record", "\u2714\ufe0f", "#22c55e"], ["roster", "Team names", "work", "record", "\ud83d\udc65", "#7c3aed"],
     ["parking", "Parking lot", "snow", "polygon", "@poly", "#64748b"], ["storage", "Snow storage area", "snow", "polygon", "@poly", "#93c5fd"], ["noplow", "Do-not-plow area", "snow", "polygon", "@poly", "#ef4444"]];
   var T = {}; TYPES.forEach(function (t) { T[t[0]] = { id: t[0], name: t[1], layer: t[2], geom: t[3], e: t[4], c: t[5] }; });
   var FIELD_NAMES = ["West field", "Burnett field", "East field", "Practice field", "Batting cages"];
   var LINE_W = { lateral: 2.5, mainline: 4.5, route: 5, walk: 3.5 }, DASH = { walk: 1, route: 0 };
   function tOf(a) { return T[a.type] || T.other; }
   function isPlace(a) { return a.type === "property" || a.type === "parkfix"; }
+  /* records: tasks, storms, checklists and check-offs. They sync like items but are not things on the map. */
+  function isRec(a) { return (T[a.type] || T.other).layer === "work"; }
   function layerOf(a) { return (T[a.type] || T.other).layer; }
   function condList(a) { return COND_BY[layerOf(a)] || COND_BY.assets; }
   function isBad(a) { var l = condList(a), i = l.indexOf(a.cond); return i >= 2; }
@@ -94,7 +99,8 @@
   function tx(store, mode, fn) { return new Promise(function (res, rej) { var t = db.transaction(store, mode), s = t.objectStore(store), out = fn(s); t.oncomplete = function () { res(out && out.result !== undefined ? out.result : out); }; t.onerror = function () { rej(t.error); }; }); }
   function all(store) { return new Promise(function (res, rej) { var rq = db.transaction(store).objectStore(store).getAll(); rq.onsuccess = function () { res(rq.result || []); }; rq.onerror = function () { rej(rq.error); }; }); }
   function photosOf(id) { return new Promise(function (res) { var rq = db.transaction("photos").objectStore("photos").index("asset").getAll(id); rq.onsuccess = function () { res((rq.result || []).sort(function (a, b) { return b.date - a.date; })); }; rq.onerror = function () { res([]); }; }); }
-  function saveAsset(a, remote) { if (!remote) { a.updated = Date.now(); a.dirty = true; } return tx("assets", "readwrite", function (s) { return s.put(a); }).then(function () {
+  function untomb(id) { try { var d = JSON.parse(localStorage.getItem("pu-del") || "[]"), n = d.filter(function (x) { return x.id !== id; }); if (n.length !== d.length) localStorage.setItem("pu-del", JSON.stringify(n)); } catch (e) {} }
+  function saveAsset(a, remote) { if (!remote) { a.updated = Date.now(); a.dirty = true; untomb(a.id); } return tx("assets", "readwrite", function (s) { return s.put(a); }).then(function () {
     var i = ASSETS.findIndex(function (x) { return x.id === a.id; }); if (i < 0) ASSETS.push(a); else ASSETS[i] = a; if (!remote) { refresh(); changed(); } }); }
   var hooks = [];
   function changed() { hooks.forEach(function (f) { try { f(); } catch (e) {} }); }
@@ -168,7 +174,7 @@
 
   /* ---------------- map layers ---------------- */
   var selId = null;
-  function pointGJ() { return { type: "FeatureCollection", features: ASSETS.filter(function (a) { return a.lng != null && tOf(a).geom === "point" && !isPlace(a); }).map(function (a) {
+  function pointGJ() { return { type: "FeatureCollection", features: ASSETS.filter(function (a) { return a.lng != null && tOf(a).geom === "point" && !isPlace(a) && !isRec(a); }).map(function (a) {
     var p = a.props || {}, si = a.type === "head" ? Math.max(0, SIZES.indexOf(p.size || SIZES[0])) : -1;
     return { type: "Feature", geometry: { type: "Point", coordinates: [a.lng, a.lat] }, properties: { id: a.id, type: T[a.type] ? a.type : "other", layer: layerOf(a), bad: isBad(a) ? 1 : 0,
       sz: si >= 0 ? SIZE_R[si] : (layerOf(a) === "irrigation" ? .8 : 1), throwm: a.type === "head" && +p.throw > 0 ? +p.throw * .3048 : 0 } }; }) }; }
@@ -292,7 +298,7 @@
   function addPhoto(asset, file) {
     return compress(file).then(function (blob) {
       var ph = { id: uid(), asset: asset.id, date: Date.now(), blob: blob, lat: me ? me.lat : null, lng: me ? me.lng : null, acc: me ? me.acc : null, synced: false };
-      return tx("photos", "readwrite", function (s) { s.put(ph); }).then(function () { asset.photoCount = (asset.photoCount || 0) + 1; asset.lastPhoto = ph.date; return saveAsset(asset); });
+      return tx("photos", "readwrite", function (s) { s.put(ph); }).then(function () { asset.photoCount = (asset.photoCount || 0) + 1; asset.lastPhoto = ph.date; return saveAsset(asset); }).then(function () { return ph; });
     });
   }
   function pickPhoto(camera, cb) { var i = document.createElement("input"); i.type = "file"; i.accept = "image/*"; if (camera) i.setAttribute("capture", "environment");
@@ -364,13 +370,15 @@
   document.body.appendChild(shell);
 
   function showSheet(id) { ["asList", "asSheet"].forEach(function (k) { $(k).hidden = k !== id; }); $("asScrim").hidden = !id; }
-  function closeAll() { showSheet(null); setSel(null); stopGPSWait(); }
+  var closeCbs = [], cardCbs = [], condCbs = [];
+  var backFn = null;
+  function closeAll() { backFn = null; showSheet(null); setSel(null); stopGPSWait(); closeCbs.forEach(function (f) { try { f(); } catch (e) {} }); }
   $("asScrim").onclick = closeAll; $("asListX").onclick = closeAll; $("asX").onclick = closeAll;
-  $("asBack").onclick = function () { stopGPSWait(); setSel(null); if (focusLayer && !listCtx.fromList) { showSheet(null); } else openList(listCtx); };
+  $("asBack").onclick = function () { stopGPSWait(); setSel(null); if (backFn) { var f = backFn; backFn = null; showSheet(null); f(); return; } if (focusLayer && !listCtx.fromList) { showSheet(null); } else openList(listCtx); };
 
   /* --- list --- */
   var listCtx = {}, fType = "all";
-  function inCtx(a) { return !isPlace(a) && (!listCtx.park || a.park === listCtx.park) && (!listCtx.layer || layerOf(a) === listCtx.layer); }
+  function inCtx(a) { return !isPlace(a) && !isRec(a) && (!listCtx.park || a.park === listCtx.park) && (!listCtx.layer || layerOf(a) === listCtx.layer); }
   function openList(ctx) { if (PU.closeAll && !focusLayer) PU.closeAll(); listCtx = ctx || {}; listCtx.fromList = true; fType = listCtx.type || "all"; $("asQ").value = ""; showSheet("asList"); drawList(); }
   function drawList() {
     var chips = $("asChips"); chips.innerHTML = "";
@@ -558,7 +566,7 @@
     return '<div class="as-f"><label for="' + id + '">' + esc(f[1]) + "</label>" + h + "</div>";
   }
   function openAsset(id, fly, keep) {
-    var a = byId(id); if (!a) return;
+    var a = byId(id); if (!a) return; if (!keep) backFn = null;
     if (PU.closeAll && !focusLayer) PU.closeAll(); stopGPSWait(); setSel(id); showSheet("asSheet");
     var t = tOf(a), geom = t.geom; $("asT").textContent = a.label || t.name; a.props = a.props || {};
     var map = PU.map();
@@ -568,7 +576,7 @@
       '<span class="as-pill" style="--c:' + COND_COL[Math.max(0, conds.indexOf(a.cond))] + '"><i></i>' + esc(a.cond || conds[0]) + '</span></div>' +
       '<div id="asHeroBox"></div>' +
       '<div class="as-act"><button class="p" id="asCam">\ud83d\udcf7 Take new photo</button><button id="asGal">\ud83d\uddbc Add from gallery</button></div>' +
-      '<div class="as-ph" id="asPh"></div>' +
+      '<div class="as-ph" id="asPh"></div><div id="asWork"></div>' +
       '<div class="as-f"><label>' + (layerOf(a) === "trees" ? "Health" : "Condition") + '</label><div class="as-seg" id="asCond"></div></div>' +
       '<div class="as-f"><label for="asLabel">' + (a.type === "ballfield" || a.type === "cage" ? "Field name" : "Name or ID tag") + '</label><input id="asLabel" maxlength="60" placeholder="' + (a.type === "ballfield" ? "e.g. West field" : a.type === "tree" ? "e.g. Tree 14" : "e.g. Bench 3, north path") + '"' + (a.type === "ballfield" ? ' list="asFieldNames"' : "") + '></div>' +
       (a.type === "ballfield" ? '<datalist id="asFieldNames">' + FIELD_NAMES.map(function (n) { return '<option value="' + esc(n) + '">'; }).join("") + "</datalist>" : "") +
@@ -581,7 +589,7 @@
       '<div class="as-act">' + (geom === "point" ? '<button id="asReGps">\ud83d\udccd Update GPS here</button><button id="asReTap">Move / turn on map</button>' : '<button id="asShape">\u270f\ufe0f Edit shape</button><button id="asRedraw">Redraw</button>') +
       '<button id="asNav">Directions</button><button class="d" id="asDel">Delete</button></div>';
     conds.forEach(function (c, i) { var b = document.createElement("button"); b.textContent = c; b.style.setProperty("--c", COND_COL[i]); b.setAttribute("aria-pressed", (a.cond || conds[0]) === c);
-      b.onclick = function () { a.cond = c; saveAsset(a).then(function () { openAsset(a.id, false, true); }); }; $("asCond").appendChild(b); });
+      b.onclick = function () { var was = a.cond || conds[0]; a.cond = c; saveAsset(a).then(function () { condCbs.forEach(function (f) { try { f(a, was, c); } catch (e) {} }); openAsset(a.id, false, true); }); }; $("asCond").appendChild(b); });
     $("asLabel").value = a.label || ""; $("asNotes").value = a.notes || "";
     $("asLabel").onchange = function () { a.label = this.value.trim(); saveAsset(a); $("asT").textContent = a.label || t.name; };
     $("asNotes").onchange = function () { a.notes = this.value; saveAsset(a); };
@@ -611,6 +619,7 @@
     $("asDel").onclick = function () { if (confirm("Delete this " + t.name.toLowerCase() + " and all its photos?")) delAsset(a).then(function () { PU.toast("Deleted."); if (focusLayer) showSheet(null); else openList(listCtx.park ? listCtx : { park: a.park }); }); };
     if (RO) { [].forEach.call(body.querySelectorAll("input,select,textarea,#asCond button"), function (el) { el.disabled = true; });
       ["asCam", "asGal", "asReGps", "asReTap", "asShape", "asRedraw", "asDel"].forEach(function (k) { var el = $(k); if (el) el.hidden = true; }); }
+    cardCbs.forEach(function (f) { try { f(a, body, RO); } catch (e) {} });
     body.scrollTop = y;
     curPhotos.forEach(function (u) { URL.revokeObjectURL(u); }); curPhotos = [];
     photosOf(a.id).then(function (ph) {
@@ -740,14 +749,14 @@
     saveFile("park-" + (listCtx.layer || "assets") + "-" + new Date().toISOString().slice(0, 10) + ".geojson", JSON.stringify(exportGJ(), null, 1), "application/geo+json"); };
 
   /* ---------------- start ---------------- */
-  function counts(park, layer) { var by = {}; ASSETS.forEach(function (a) { if (a.park === park && (!layer || layerOf(a) === layer)) by[a.type] = (by[a.type] || 0) + 1; }); return by; }
+  function counts(park, layer) { var by = {}; ASSETS.forEach(function (a) { if (a.park === park && !isRec(a) && (!layer || layerOf(a) === layer)) by[a.type] = (by[a.type] || 0) + 1; }); return by; }
   function layerCount(park, layer) { return ASSETS.filter(function (a) { return a.park === park && layerOf(a) === layer; }).length; }
   var ready = open().then(function () { return all("assets"); }).then(function (list) { ASSETS = list || []; refresh(); }).catch(function () { PU.toast("Storage isn't available on this device."); });
   try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) {}
 
   window.PUAssets = { TYPES: TYPES, T: T, LAYERS: LAYERS, addLayers: addLayers, openList: openList, startAdd: startAdd, openAsset: openAsset, locateMe: locateMe, counts: counts, layerCount: layerCount, iconURL: iconURL,
     openLayer: openLayer, closeLayer: closeLayer, openLayersPanel: openLayersPanel, openExport: openExport, startDraw: startDraw, vis: function () { return VIS; }, focus: function () { return focusLayer; },
-    close: function () { closeAll(); if (draw) endDraw(); }, ready: ready, me: function () { return me; }, startGPS: function () { return startGPS(); }, list: function () { return ASSETS.filter(function (a) { return !isPlace(a); }); },
+    close: function () { closeAll(); if (draw) endDraw(); }, ready: ready, me: function () { return me; }, startGPS: function () { return startGPS(); }, list: function () { return ASSETS.filter(function (a) { return !isPlace(a) && !isRec(a); }); },
     layerErrors: function () { return LAYER_ERR.slice(); },
     places: function () { return ASSETS.filter(function (a) { return a.type === "property"; }); },
     fixes: function () { return ASSETS.filter(function (a) { return a.type === "parkfix"; }); },
@@ -756,7 +765,11 @@
       a.label = name; a.park = name; if (ll) { a.lng = +(+ll[0]).toFixed(7); a.lat = +(+ll[1]).toFixed(7); } if (rot != null) a.props.rot = Math.round(rot) % 360; if (extra) Object.keys(extra).forEach(function (k) { a.props[k] = extra[k]; }); return saveAsset(a); },
     previewAsset: function (id, ll, rot) { var a = byId(id); if (!a) return; if (ll) { a.lng = ll[0]; a.lat = ll[1]; } if (rot != null) { a.props = a.props || {}; a.props.rot = rot; } refresh(); }, saveProperty: saveProperty, deleteProperty: function (id) { var a = byId(id); return a ? delAsset(a) : Promise.resolve(); },
     onPlaces: function (f) { placeCbs.push(f); }, setReadOnly: setRO, readOnly: function () { return RO; },
-    onChange: function (f) { hooks.push(f); },
+    onChange: function (f) { hooks.push(f); }, backTo: function (f) { backFn = f; }, onClose: function (f) { closeCbs.push(f); }, onCard: function (f) { cardCbs.push(f); }, onCond: function (f) { condCbs.push(f); },
+    all: function () { return ASSETS; }, byId: byId, uid: uid, isBad: isBad, isRec: isRec, condList: condList, summary: summary, measure: measure, fmtDate: fmtDate, layerOf: layerOf, tOf: tOf, meters: meters,
+    save: function (a) { if (RO) { PU.toast("View only \u2014 ask an admin for editor access."); return Promise.reject(new Error("view only")); } return saveAsset(a); },
+    remove: function (a) { if (RO) { PU.toast("View only \u2014 ask an admin for editor access."); return Promise.reject(new Error("view only")); } return delAsset(a); },
+    addPhoto: function (a, file) { return addPhoto(a, file); }, pickPhoto: pickPhoto, photosOf: photosOf, blobOf: blobOf, viewPhotos: view, hideSheets: function () { showSheet(null); }, saveFile: saveFile, saveBinary: saveBinary, toCSVq: function (v) { v = v == null ? "" : String(v); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; },
     _sync: { all: function () { return ASSETS.slice(); }, layerOf: layerOf,
       markClean: function (id, stamp) { var a = byId(id); if (a && a.updated === stamp) { a.dirty = false; a.synced = true; return saveAsset(a, true); } return Promise.resolve(); },
       applyRemote: function (a) { var l = byId(a.id); if (l && l.dirty) return Promise.resolve(false); return saveAsset(a, true).then(function () { return true; }); },

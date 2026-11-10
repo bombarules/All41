@@ -1,6 +1,12 @@
 package com.orbit.hub;
 
 import android.app.Activity;
+import android.app.Notification;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
+import android.print.PrintAttributes;
+import android.print.PrintManager;
 import android.app.role.RoleManager;
 import android.content.ContentValues;
 import android.content.Intent;
@@ -57,6 +63,12 @@ public class MainActivity extends Activity {
     private static final int REQ_FILE = 51;
     private static final int REQ_SAVE = 52;
     private static final int REQ_LOCATION = 53;
+    private static final int REQ_NOTIFY = 54;
+    private static final String DUE_CHANNEL = "due";
+    private static final String EXTRA_OPEN = "open";
+    private Uri lastCapture;
+    private String pendingDueTitle;
+    private String pendingDueText;
     private GeolocationPermissions.Callback geoCallback;
     private String geoOrigin;
     private ValueCallback<Uri[]> fileCallback;
@@ -97,7 +109,9 @@ public class MainActivity extends Activity {
             }
         };
         if (savedInstanceState == null) {
-            web.loadUrl(START);
+            // Opened from the "what's due" notification: go straight to that list.
+            String open = getIntent() != null ? getIntent().getStringExtra(EXTRA_OPEN) : null;
+            web.loadUrl("due".equals(open) ? START + "#due" : START);
         }
     }
 
@@ -109,7 +123,7 @@ public class MainActivity extends Activity {
                 Uri[] result = null;
                 if (resultCode == RESULT_OK) {
                     if (data != null && data.getData() != null) result = new Uri[]{data.getData()};
-                    else if (cameraUri != null) result = new Uri[]{cameraUri};
+                    else if (cameraUri != null) { result = new Uri[]{cameraUri}; lastCapture = cameraUri; }
                 } else if (cameraUri != null) {
                     try { getContentResolver().delete(cameraUri, null, null); } catch (Exception ignored) { }
                 }
@@ -164,15 +178,56 @@ public class MainActivity extends Activity {
             geoCallback = null;
             geoOrigin = null;
         }
+        if (requestCode == REQ_NOTIFY) {
+            boolean ok = results.length > 0 && results[0] == PackageManager.PERMISSION_GRANTED;
+            if (ok && pendingDueTitle != null) postDue(pendingDueTitle, pendingDueText);
+            pendingDueTitle = null;
+            pendingDueText = null;
+        }
+    }
+
+    /** One quiet notification a day when tests, trees or tasks are due; tapping it opens the list. */
+    private void postDue(String title, String text) {
+        try {
+            NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+            if (nm == null) return;
+            if (Build.VERSION.SDK_INT >= 26) {
+                NotificationChannel ch = new NotificationChannel(DUE_CHANNEL, "What's due", NotificationManager.IMPORTANCE_DEFAULT);
+                ch.setDescription("Backflow tests, tree dates and tasks that are due or overdue");
+                nm.createNotificationChannel(ch);
+            }
+            Intent open = new Intent(this, MainActivity.class);
+            open.putExtra(EXTRA_OPEN, "due");
+            open.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+            PendingIntent pi = PendingIntent.getActivity(this, 1, open,
+                    PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+            Notification.Builder b = Build.VERSION.SDK_INT >= 26
+                    ? new Notification.Builder(this, DUE_CHANNEL) : new Notification.Builder(this);
+            b.setSmallIcon(android.R.drawable.ic_popup_reminder)
+                    .setContentTitle(title)
+                    .setContentText(text)
+                    .setStyle(new Notification.BigTextStyle().bigText(text))
+                    .setContentIntent(pi)
+                    .setAutoCancel(true);
+            nm.notify(7001, b.build());
+        } catch (Exception ignored) {
+        }
     }
 
     @Override
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
         setIntent(intent);
+        final boolean due = "due".equals(intent.getStringExtra(EXTRA_OPEN));
         // Home button pressed while Park Universe is the home app: back to the map.
         if (web != null) {
             web.post(() -> {
+                if (due) {
+                    String u0 = web.getUrl();
+                    if (u0 == null || !u0.startsWith(START)) web.loadUrl(START + "#due");
+                    else web.evaluateJavascript("window.bombaOpen&&window.bombaOpen('due')", null);
+                    return;
+                }
                 String u = web.getUrl();
                 if (u == null || !u.startsWith(START)) web.loadUrl(START);   // inside an app: back to the map
                 else web.evaluateJavascript("window.bombaHome&&window.bombaHome()", null);
@@ -296,6 +351,7 @@ public class MainActivity extends Activity {
             if (fileCallback != null) fileCallback.onReceiveValue(null);
             fileCallback = callback;
             cameraUri = null;
+            lastCapture = null;
             String[] types = params.getAcceptTypes();
             String type = (types != null && types.length > 0 && types[0] != null && !types[0].isEmpty()) ? types[0] : "*/*";
             Intent intent = null;
@@ -450,6 +506,46 @@ public class MainActivity extends Activity {
             } catch (Exception e) {
                 return "";
             }
+        }
+
+        /** "What's due" reminder. Asks for notification permission the first time (Android 13+). */
+        @JavascriptInterface
+        public void notifyDue(final String title, final String text) {
+            runOnUiThread(() -> {
+                if (Build.VERSION.SDK_INT >= 33
+                        && checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                    pendingDueTitle = title;
+                    pendingDueText = text;
+                    requestPermissions(new String[]{android.Manifest.permission.POST_NOTIFICATIONS}, REQ_NOTIFY);
+                    return;
+                }
+                postDue(title, text);
+            });
+        }
+
+        /** Prints what's on screen (QR tag sheets, the monthly summary) or saves it as a PDF. */
+        @JavascriptInterface
+        public void printPage(final String name) {
+            runOnUiThread(() -> {
+                try {
+                    String job = name == null || name.isEmpty() ? "Park Universe" : name;
+                    PrintManager pm = (PrintManager) getSystemService(PRINT_SERVICE);
+                    pm.print(job, web.createPrintDocumentAdapter(job), new PrintAttributes.Builder().build());
+                } catch (Exception e) {
+                    Toast.makeText(MainActivity.this, "Printing isn't available on this phone", Toast.LENGTH_LONG).show();
+                }
+            });
+        }
+
+        /** A QR tag was scanned with the camera: don't leave that picture in the phone's gallery. */
+        @JavascriptInterface
+        public void discardCapture() {
+            runOnUiThread(() -> {
+                if (lastCapture != null) {
+                    try { getContentResolver().delete(lastCapture, null, null); } catch (Exception ignored) { }
+                    lastCapture = null;
+                }
+            });
         }
 
         @JavascriptInterface

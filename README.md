@@ -12,12 +12,16 @@ can update one without touching the others.
 All of them join the same wall: same wall code = same screens. See CONNECTING.md.
 
 ## Get the Park Universe app
-Actions tab → newest green run → download **ParkUniverse-apk** → unzip → install `app-debug.apk`.
+- **Easiest:** on the phone, open the repo's **Releases** → newest → tap **ParkUniverse.apk** → Install.
+- Or: Actions tab → newest green run → download **ParkUniverse-apk** → unzip → install `app-debug.apk`.
+- Once v2.7 is on a phone it tells you when a newer build is ready (see "Update banner" below).
 
 ## Update later
 - Edit any file on GitHub (open it → pencil icon → Commit). The app rebuilds by itself.
 - Or upload a new `All41.zip` to the main page of the repo; it unpacks itself and rebuilds.
 - `bomba-wall.js` is in three places (Orbit assets, bomba-live, OverLook). Keep them identical.
+  The build checks this and stops with a clear message if one copy is different.
+- The build recipe (`.github/workflows/build.yml`) is the one file a zip upload never changes. Edit it on GitHub by hand.
 
 ## The 3D map (Park Universe home)
 - **Bubble 3D** (default): Bubble's Mapbox street map tilted into 3D with standing buildings, the same coloured park dots and names, low-poly trees and the park models.
@@ -119,3 +123,52 @@ the shape; ⟲ ⟳ aims home plate. The choice syncs to the team.
 - v2.6: batting cages start at third base and run outward parallel to the left-field line, in foul ground.
   West Baseball Field faces northeast (home plate southwest); Practice Field sits just past West's outfield fence,
   home plate at its northeast corner with the infield facing West (approximate until placed with 📍).
+
+## Work (v2.7)
+The **Work** button in the bottom bar (also Menu ⋮ → Work). The number on it is what's overdue, due this week and open tasks.
+Everything here is saved as ordinary items, so it syncs to the team, backs up and restores like assets do. Nothing new on the server.
+- **What's due**: backflow tests (the "Next test due" date, or a year after "Last test"), tree replacement and plant-by dates,
+  and task due dates, for every place, grouped overdue / next 7 days / next 30 days. **Tested today** on a backflow sets
+  last test to today and next test a year out. **CSV** exports the list. Once a day the phone shows one notification if
+  anything is overdue or due this week; tapping it opens the list.
+- **Tasks**: marking an item Needs repair, Out of service, Leaking, Needs replacing, Missing (or a tree Dead) opens a
+  repair task by itself. Or add one from an item's card (🔧 Repair task) or the Tasks list. Each task: who it's for, due date,
+  priority (Normal / High / Safety), notes, before and after photos, status (Open → In progress → Done). Closing a task
+  offers to set the item back to Good and take the after photo. An item's card shows its open tasks and past repairs.
+- **Snow storm**: Start storm when crews head out. Every sidewalk, plow route, ramp, mailbox, gate, steps, ice-melt spot
+  and parking lot mapped in a park's Snow tab becomes a check-off, in priority order, stamped with the time and who.
+  Parks with nothing mapped get one check for the whole park. End storm closes the log; **CSV** is the proof-of-service record.
+  While a storm is running each park card shows "Storm 2/5".
+- **Irrigation checklists**: Spring startup and Fall blowout per park, built from that park's backflows, timers, quick
+  couplers and zone valves. One shared list per park per year. The park screen also shows a **coverage check**: heads with
+  no throw radius set, and heads whose nearest neighbour is farther away than their throw.
+- **QR tags**: Print QR tags makes sticker sheets (10 per sheet for Avery 5163, 30 per sheet for Avery 5160, or plain paper and tape) for a park, a layer or one
+  item (item card → 🏷 QR tag). **Scan a tag** takes a picture of a tag and opens that item's card. The scan picture is
+  not kept in the gallery.
+- **Monthly summary**: one report for the board: repairs opened and closed (with before / after photos), still open,
+  snow events, backflow tests, trees planted and removed, what's due next month. Print / PDF saves it as a PDF.
+  Arrows change the month.
+
+## Pools, parks and Field Reports linked up (v2.7)
+- A pool's card on the map has **Plant 3D**, **PoolCommand** and **Aquatics Tech** buttons that open straight to that pool.
+- Every park card has **Reports** (count of that property's field reports; opens them, or starts a new one) plus
+  **Due**, **Tasks** and, during a storm, **Storm**.
+- An item's card has **📝 Field report**: starts a report for that park with the item's name filled in. Reports made this
+  way are listed on the item's card afterwards.
+- The counts refresh each time Field Reports is opened (it stays a phone-only app; its reports do not sync).
+
+## Update banner (v2.7)
+When a newer build has been published, the app shows "A newer Park Universe is ready" with an **Update** button that
+downloads the APK; open it and tap Install. Menu ⋮ → **Check for update** checks right now. It checks at most every 6 hours.
+This needs the newer `build.yml` (it publishes each build under Releases and keeps the newest 5).
+
+## Web map (v2.7)
+The same map as a web page: `https://bombarules.github.io/ParkUniverse/` once Pages is on
+(repo Settings → Pages → Source: **GitHub Actions**). Anyone can open the page, but it shows nothing of yours until they
+sign in with a Team sync account. Give the board and office staff the **Viewer** role: they can look at every layer,
+What's due, tasks, storm logs and the monthly summary, and change nothing. Phone-only things (app drawer, screen sharing,
+notifications, update banner) are not on the web page.
+
+## Housekeeping (v2.7)
+- `Orbit/app/src/main/assets/three.min.js` (an unused second copy of the 3D library) is now a one-line placeholder.
+  You can delete that file on GitHub.

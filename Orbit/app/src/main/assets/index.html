@@ -374,6 +374,7 @@ function showCard(i){var p=PL[i],c=catOf(p),q=p.addr||(p.n+", Central Park, Denv
     if(tot){var sm=document.createElement("div");sm.className="am";Object.keys(by).forEach(function(k){var sp=document.createElement("span");sp.innerHTML='<img alt="" src="'+PUAssets.iconURL(k)+'" style="width:15px;height:15px;vertical-align:-3px"> '+by[k]+" "+PUAssets.T[k].name.toLowerCase();sm.appendChild(sp)});$("cSrc").parentNode.insertBefore(sm,$("cSrc"))}}$("cMv").onclick=function(){startMove(i)};$("cX").onclick=closeCard;
   if(p.custom){$("cEd").hidden=false;$("cEd").onclick=function(){propForm(p)}}
   $("cSrc").textContent=p.custom?(p.geo==="approx"||p.geo==="todo"?"Pin: approximate \u2014 tap \ud83d\udccd to place it exactly":p.geo==="exact"?"Pin: exact location \u00b7 tap \u270e to edit":"Added property \u00b7 tap \u270e to edit"):p.src===2?"Pin: exact location":p.src===1?"Pin: from the street address":"Pin: approximate \u2014 tap \ud83d\udccd to place it exactly";
+  if(window.PUOps)try{PUOps.decorateCard(p,i,el)}catch(e){}
   el.hidden=false;dockH();
 }
 function dockH(){var d=document.querySelector(".dock");if(d){var r=d.getBoundingClientRect();document.documentElement.style.setProperty("--dockH",Math.round(window.innerHeight-r.top)+"px")}}
@@ -598,11 +599,12 @@ window.__pu={PL:PL,pick:pick,tourStart:tourStart,tour:function(){return tour},ro
 var namesOn=true;function setNames(on){namesOn=on;if(!map)return;["pu-label","pu-sel-label","pu-dot","pu-glow"].forEach(function(id){if(map.getLayer(id))map.setLayoutProperty(id,"visibility",on?"visible":"none")})}
 function setTempLook(l){if(look===l)return;if(!prevLook)prevLook=look;look=l;sat=look==="sat";if(map)map.setStyle(styleFor())}
 function restoreLook(){if(prevLook){look=prevLook;prevLook=null;sat=look==="sat";if(map)map.setStyle(styleFor())}}
-window.PU={openSnowRules:function(i){openSnow(i)},map:function(){return map},look:function(){return look},setTempLook:setTempLook,restoreLook:restoreLook,setNames:setNames,PL:PL,pick:pick,toast:toast,padFor:padFor,std:function(){return look==="real"},moveMode:moveMode,
+window.PU={openSnowRules:function(i){openSnow(i)},map:function(){return map},look:function(){return look},setTempLook:setTempLook,restoreLook:restoreLook,setNames:setNames,PL:PL,pick:pick,selected:function(){return sel},toast:toast,padFor:padFor,std:function(){return look==="real"},moveMode:moveMode,
   closeAll:function(){closeMenu();closeSheet();closeApps();$("snow").hidden=true;closeCard();if(tour)tourStop()}};
 })();
 </script>
 <script src="assets.js"></script>
 <script src="vendor/supabase.js"></script>
 <script src="sync.js"></script>
+<script src="ops.js"></script>
 </body></html>

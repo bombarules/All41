@@ -616,6 +616,7 @@ $('f').onsubmit=function(ev){ev.preventDefault();$('ferr').hidden=true;
   contractor:[$('cname').value,$('ccompany').value,$('cphone').value,$('cemail').value].map(function(x){return x.trim()}).filter(Boolean).join(', '),
   resp:$('resp').value,cn:$('cname').value.trim(),cc:$('ccompany').value.trim(),cp:$('cphone').value.trim(),ce:$('cemail').value.trim(),
   notes:$('notes').value.trim(),photo:''};
+ var pa=window.puAssetId?puAssetId():'';if(pa)base.asset=pa;
  var up=Promise.resolve('');
  if(pending){var p=pending;up=(assets&&p.blob)?assets.upload(p.blob).then(function(a){return a.url}).catch(function(){return p.url}):Promise.resolve(p.url)}
  up.then(function(u){
@@ -648,6 +649,37 @@ go('home');
  if(!cdb){$('banner').hidden=false;loaded=true;draw();return}
  cdb.collection('reports').onSnapshot(snap(reports),function(){$('banner').hidden=false});
  cdb.collection('updates').onSnapshot(snap(updates),function(){});
+})();
+</script>
+<script>
+/* Park Universe link. Keeps a small count of reports per property (and per map item) where the map can read it,
+   and opens a property, one report, or a new report when the map sends you here:
+   #prop=<property>   #open=<report id>   #new=<property>&asset=<item id>&title=<item name> */
+(function(){
+ var puAsset='',done=false;
+ function publish(){if(!loaded)return;try{var by={},as={};
+  reports.forEach(function(r){var p=placeOf(r),st=statusOf(r);
+   if(p){var m=by[p]||(by[p]={n:0,open:0,hot:0});m.n++;if(st!=='Done'){m.open++;if(isHot(r))m.hot++}}
+   if(r.asset)(as[r.asset]=as[r.asset]||[]).push({id:r.id,title:r.title,st:st,t:r.created})});
+  Object.keys(as).forEach(function(k){as[k].sort(function(a,b){return String(b.t).localeCompare(String(a.t))})});
+  localStorage.setItem('pu-fr-index',JSON.stringify({by:by,assets:as,at:Date.now()}))}catch(e){}}
+ function arg(h,k){var m=new RegExp('[#&]'+k+'=([^&]*)').exec(h);try{return m?decodeURIComponent(m[1]):''}catch(e){return ''}}
+ function route(){if(done||!loaded)return;var h=location.hash||'';if(h.length<2){done=true;return}
+  var op=arg(h,'open'),prop=arg(h,'prop'),nw=arg(h,'new');
+  if(op){if(!reports.some(function(r){return r.id===op}))return;done=true;openView(op)}
+  else if(prop){done=true;openProp(prop)}
+  else if(nw){done=true;if(!canWrite||!cdb){say('Reports are view only here');return}
+   clearForm();go('add');
+   var has=[].some.call($('loc').options,function(o){return o.value===nw});
+   if(has)$('loc').value=nw;else{$('loc').value='Other';$('locOther').hidden=false;$('locOther').value=nw}
+   var t=arg(h,'title');if(t)$('title').value=t+': ';puAsset=arg(h,'asset');
+   try{$('title').focus()}catch(e){}}
+  else done=true;
+  try{history.replaceState(null,'',location.pathname+location.search)}catch(e){}}
+ var redraw0=redraw;redraw=function(){redraw0();publish();route()};
+ var clear0=clearForm;clearForm=function(){clear0();puAsset=''};
+ window.puAssetId=function(){return puAsset};
+ addEventListener('hashchange',function(){done=false;route()});
 })();
 </script>
 
