@@ -38,6 +38,18 @@ jobs:
           git add -A
           if git commit -m "Unpack uploaded zip"; then git push origin HEAD:"${GITHUB_REF_NAME:-main}"; else echo "Nothing new to commit"; fi
 
+      # bomba-wall.js lives in three folders and must be the same file in all of them,
+      # or one app drops off the wall. Stop here, with a clear message, if they drift.
+      - name: Check the shared wall file is identical everywhere
+        run: |
+          a=Orbit/app/src/main/assets/bomba-wall.js
+          ok=1
+          for f in bomba-live/bomba-wall.js OverLook/bomba-wall.js; do
+            if ! cmp -s "$a" "$f"; then echo "::error file=$f::$f is different from $a. Copy the newest bomba-wall.js into all three folders."; ok=0; fi
+          done
+          [ "$ok" -eq 1 ] && echo "bomba-wall.js matches in all three folders"
+          [ "$ok" -eq 1 ]
+
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
@@ -48,6 +60,15 @@ jobs:
       # don't need to download anything from gradle.org.
       - name: Set up Gradle (with cache)
         uses: gradle/actions/setup-gradle@v4
+
+      # The app reads this to know which build it is, for the "update ready" banner.
+      - name: Stamp the build number into the app
+        id: ver
+        run: |
+          ver=$(sed -n "s/.*versionName '\(.*\)'.*/\1/p" Orbit/app/build.gradle | head -n1)
+          echo "ver=$ver" >> "$GITHUB_OUTPUT"
+          echo "{\"version\":\"$ver\",\"run\":$GITHUB_RUN_NUMBER}" > Orbit/app/src/main/assets/build.json
+          cat Orbit/app/src/main/assets/build.json
 
       # gradle.org sometimes times out; try up to 3 times before giving up.
       - name: Build Park Universe APK
@@ -66,3 +87,49 @@ jobs:
         with:
           name: ParkUniverse-apk
           path: Orbit/app/build/outputs/apk/debug/app-debug.apk
+
+      # Publishes the APK as a Release, so phones can show "A newer Park Universe is ready"
+      # and download it with one tap. Keeps the newest 5 and removes older ones.
+      - name: Publish the APK for one-tap updates
+        if: github.ref_name == 'main'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ver="${{ steps.ver.outputs.ver }}"
+          tag="v${ver}-b${GITHUB_RUN_NUMBER}"
+          cp Orbit/app/build/outputs/apk/debug/app-debug.apk ParkUniverse.apk
+          gh release create "$tag" ParkUniverse.apk --target "$(git rev-parse HEAD)" --latest \
+            --title "Park Universe ${ver} (build ${GITHUB_RUN_NUMBER})" \
+            --notes "Install: download ParkUniverse.apk on the phone, open it, tap Install. It installs over the old one and keeps your data."
+          gh release list --limit 100 --json tagName --jq '.[5:][].tagName' | while read -r old; do
+            [ -n "$old" ] && gh release delete "$old" --cleanup-tag --yes || true
+          done
+
+  # The same map as a web page for the office and the board (sign in with a Viewer account to look only).
+  # Needs: repo Settings -> Pages -> Source: "GitHub Actions". Until that is switched on this job
+  # fails by itself and the APK build above is not affected.
+  web:
+    needs: build
+    if: github.ref_name == 'main'
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - name: Check out the newest files
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+      - name: Package the web map
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: Orbit/app/src/main/assets
+      - name: Publish the web map
+        id: deploy
+        uses: actions/deploy-pages@v4
